@@ -1,0 +1,29 @@
+# Secrets und lokale Zustände: nie committen
+.env
+.env.*
+*.env
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl.bak
+*.tfvars
+!*.tfvars.example
+tfplan*
+kubeconfig*
+*.kubeconfig
+*.pem
+*.key
+*.crt
+manifest*.zip
+*.tar.gz
+# Interna: nie ins öffentliche Repo
+CLAUDE.local.md
+local/
+# Folie mit Kundennotizen
+*.pptx
+# Ansible/EE-Build-Artefakte
+ansible/execution-environment/context/
+ansible-navigator.log
+**/artifacts/
+# macOS
+.DS_Store
