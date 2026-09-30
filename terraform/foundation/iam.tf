@@ -58,6 +58,12 @@ resource "aws_iam_role_policy" "aap" {
   })
 }
 
+# Lesen darf AAP alles: So kann es `terraform plan` für jeden Baustein als Drift-Check rechnen.
+resource "aws_iam_role_policy_attachment" "aap_readonly" {
+  role       = aws_iam_role.aap.name
+  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+}
+
 resource "aws_iam_instance_profile" "aap" {
   name = "portfolio-demo-aap-vm"
   role = aws_iam_role.aap.name

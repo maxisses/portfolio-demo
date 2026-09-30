@@ -29,6 +29,12 @@ variable "ssh_public_key_path" {
   default = "~/.ssh/portfolio-demo.pub"
 }
 
+variable "ssh_public_key" {
+  description = "Alternativ zum Pfad, z. B. wenn AAP den Plan im Execution Environment rechnet"
+  type        = string
+  default     = ""
+}
+
 variable "aap_instance_type" {
   type    = string
   default = "m6i.2xlarge"
@@ -38,4 +44,10 @@ variable "aap_rhel_ami_name" {
   description = "Namensmuster des RHEL-AMIs von Red Hat (PAYG). AAP 2.7 braucht RHEL 9.6+ oder 10."
   type        = string
   default     = "RHEL-9.8.0_HVM-*-x86_64-*-Hourly2-GP3"
+}
+
+variable "rosa_infra_id" {
+  description = "Infrastruktur-ID des ROSA-Clusters. ROSA taggt die Subnetze damit; ohne diesen Eintrag würde Terraform den Tag wieder entfernen."
+  type        = string
+  default     = "2t5fip3oq4tvcmdl3qjg91j74d7p6raf"
 }

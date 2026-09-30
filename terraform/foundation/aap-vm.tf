@@ -14,7 +14,7 @@ data "aws_ami" "rhel" {
 
 resource "aws_key_pair" "aap" {
   key_name   = "portfolio-demo-aap"
-  public_key = file(pathexpand(var.ssh_public_key_path))
+  public_key = var.ssh_public_key != "" ? var.ssh_public_key : file(pathexpand(var.ssh_public_key_path))
 }
 
 resource "aws_security_group" "aap" {
