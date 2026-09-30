@@ -2,8 +2,10 @@
 
 Stand: 30.09.2026 · Demo-Termin: 02.10.2026 · Build-Start: 30.09.2026, ca. 15:00
 
-Status: Interview abgeschlossen, alle Entscheidungen bestätigt. Der Bau läuft. Der Fortschritt
-steht in `docs/build-journal.md`.
+Status (30.09.2026, 23:30): Fundament, ROSA, AAP, GitOps-Plattform, RHOAI 3.5 mit MaaS,
+Flotte (ocp19, ocp20), Katalog-Item "Namespace", Demo-Agent über MCP und das Portal sind gebaut
+und getestet. Offen: GPU und Granite, Haiku als externes Modell, Katalog-Items AI-Namespace,
+Model-Endpoint und DBaaS. Details in `docs/build-journal.md`.
 
 Dieses Dokument ist Spezifikation und Arbeitsanweisung für Agenten zugleich. Die Umgebung wird
 mit Claude Code gebaut; wer hier arbeitet, Mensch oder Agent, hält das Dokument aktuell.
@@ -494,6 +496,11 @@ Alle Entscheidungen sind mit Max abgestimmt (Interview in fünf Runden am 30.09.
 | D36 | Interna in `CLAUDE.local.md` und `local/`, beide gitignoriert | Das Repo ist öffentlich und wird gezeigt |
 | D37 | GPU-Pool erst nach ausdrücklicher Freigabe durch Max | Runde 5 |
 | D38 | AWS-Account-ID in IAM-ARNs im Repo erlaubt (z. B. ClusterSecretStore) | Kein Secret laut AWS; Sandbox ist temporär; die Alternative wäre Templating ohne Mehrwert |
+| D40 | AAP-Konfiguration als Code über die REST-API (`ansible/playbooks/aap-configure.yml`), nicht über `infra.aap_configuration` | Die dafür nötigen Collections `ansible.platform`/`ansible.controller` gibt es nur im Automation Hub mit Token |
+| D41 | AAP pusht generiertes YAML per GitHub Deploy Key (Schreibrecht nur auf dieses Repo), als Base64-Credential | Enger als ein PAT; `GIT_SSH_COMMAND` darf ein Credential nicht setzen |
+| D42 | Katalog-Jobs warten auf den Argo-Sync über die Hub-Application `tenants-<cluster>`; im Pull-Modell meldet ACM den Stand der Edge-Cluster dorthin zurück | Einheitlicher Weg für Hub und Edge, AAP braucht keinen Edge-Zugang |
+| D43 | Agent-MCP: AAP `/mcp/job_management` mit Token von `agent-claude`; OpenShift über `kubernetes-mcp-server --read-only --cluster-provider kubeconfig`, Edge über den ACM-Cluster-Proxy mit ManagedServiceAccounts | Kein VPN nötig; Agent sieht per RBAC nur Katalog-Templates |
+| D44 | Portal per Helm-Chart `redhat-rhaap-portal` 2.2.10 (OCI-Plugins aus registry.redhat.io), Host `portal.apps.rosa.portfolio-hub...` | Offizieller Weg auf OpenShift |
 | D39 | MaaS nach der Referenz `rh-aiservices-bu/rhoai-maas-guide`: Gateway `maas-default-gateway` mit ROSA-Wildcard-Zertifikat, PostgreSQL im Cluster, Passwort aus Secrets Manager über ESO | In 3.5 liegt MaaS unter `aigateway.modelsAsAService` |
 
 ## 10. Offene Punkte (klären wir beim Bau)
