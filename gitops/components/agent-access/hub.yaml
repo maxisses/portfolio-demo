@@ -1,0 +1,65 @@
+# Lesender Zugang des Demo-Agenten (OpenShift-MCP-Server) zum Hub.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agent-access
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-viewer
+  namespace: agent-access
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: agent-viewer-token
+  namespace: agent-access
+  annotations:
+    kubernetes.io/service-account.name: agent-viewer
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: agent-viewer-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: agent-viewer
+    namespace: agent-access
+---
+# Flotten-Fragen: Cluster, Policies und Compliance lesen
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: agent-fleet-reader
+rules:
+  - apiGroups: [cluster.open-cluster-management.io]
+    resources: [managedclusters, managedclustersets, placements, placementdecisions]
+    verbs: [get, list, watch]
+  - apiGroups: [policy.open-cluster-management.io]
+    resources: [policies, placementbindings, policysets]
+    verbs: [get, list, watch]
+  - apiGroups: [argoproj.io]
+    resources: [applications, applicationsets]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [namespaces, nodes]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: agent-fleet-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: agent-fleet-reader
+subjects:
+  - kind: ServiceAccount
+    name: agent-viewer
+    namespace: agent-access

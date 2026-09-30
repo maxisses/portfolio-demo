@@ -1,0 +1,28 @@
+# Lesender Zugang des Demo-Agenten zu ocp20: ServiceAccount auf dem Edge-Cluster,
+# Token kommt über ACM zurück an den Hub, Zugriff läuft über den Cluster-Proxy.
+apiVersion: authentication.open-cluster-management.io/v1beta1
+kind: ManagedServiceAccount
+metadata:
+  name: agent-viewer
+  namespace: ocp20
+spec:
+  rotation:
+    enabled: true
+    validity: 720h
+---
+apiVersion: rbac.open-cluster-management.io/v1alpha1
+kind: ClusterPermission
+metadata:
+  name: agent-viewer
+  namespace: ocp20
+spec:
+  clusterRoleBinding:
+    name: agent-viewer-view
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: view
+    subject:
+      kind: ServiceAccount
+      name: agent-viewer
+      namespace: open-cluster-management-agent-addon
