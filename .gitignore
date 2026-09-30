@@ -14,7 +14,7 @@ kubeconfig*
 *.pem
 *.key
 *.crt
-manifest*.zip
+*.zip
 *.tar.gz
 # Interna: nie ins öffentliche Repo
 CLAUDE.local.md

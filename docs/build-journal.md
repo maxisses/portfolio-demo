@@ -17,3 +17,4 @@ Jeder Arbeitsblock: Uhrzeit, Dauer, Ergebnis, wer (Agent = Claude Code, Mensch =
 | 30.09.2026 | 20:05 | 25 min | Agent | GitOps-Bootstrap, App-of-Apps; ACM 2.17, cert-manager, Connectivity Link, LeaderWorkerSet, NFD, GPU Operator, User Workload Monitoring, RHOAI 3.5 per Argo CD |
 | 30.09.2026 | 20:15 | 5 min | Agent | AAP 2.7 fertig installiert (Growth + MCP-Server), Gateway und MCP antworten mit Let's-Encrypt-Zertifikat |
 | 30.09.2026 | 20:20 | 35 min | Agent | Terraform `platform`: IRSA-Rolle für ESO, MaaS-DB-Passwort. GitOps: External Secrets Operator (Egress-Policy nötig, weil der Operator per Deny-All isoliert), MaaS-Gateway mit ROSA-Wildcard-Zertifikat, PostgreSQL, DataScienceCluster v2. RHOAI 3.5 und MaaS `Ready`, `https://maas.apps.rosa.../maas-api/health` antwortet |
+| 30.09.2026 | 21:00 | 5 min | Max + Agent | AAP-Subscription: Manifest (AAP Premium Enablement, bis 24.10.2026) per Playbook über die API aktiviert |

@@ -1,0 +1,49 @@
+---
+# Aktiviert die AAP-Subscription mit einem Manifest von console.redhat.com.
+#   AAP_MANIFEST=~/Downloads/manifest_xyz.zip ansible-playbook playbooks/aap-license.yml
+# Das Manifest liegt nur lokal (gitignoriert), das Admin-Passwort kommt aus Secrets Manager.
+- name: AAP-Subscription per Manifest aktivieren
+  hosts: localhost
+  gather_facts: false
+  vars:
+    aap_url: https://aap.sandbox3481.opentlc.com
+    manifest: "{{ lookup('env', 'AAP_MANIFEST') | expanduser }}"
+  tasks:
+    - name: Manifest vorhanden?
+      ansible.builtin.stat:
+        path: "{{ manifest }}"
+      register: m
+      failed_when: not m.stat.exists
+
+    - name: Admin-Passwort aus Secrets Manager
+      ansible.builtin.command: aws secretsmanager get-secret-value --secret-id portfolio-demo/aap/installer --query SecretString --output text
+      register: s
+      changed_when: false
+      no_log: true
+
+    - name: Manifest hochladen, EULA akzeptieren
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/config/"
+        method: POST
+        user: admin
+        password: "{{ (s.stdout | from_json).admin_password }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          eula_accepted: true
+          manifest: "{{ lookup('ansible.builtin.pipe', 'base64 < ' ~ manifest) | replace('\n', '') }}"
+        status_code: [200, 201]
+      no_log: true
+
+    - name: Lizenzstatus
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/config/"
+        user: admin
+        password: "{{ (s.stdout | from_json).admin_password }}"
+        force_basic_auth: true
+      register: cfg
+      no_log: true
+
+    - name: Ergebnis
+      ansible.builtin.debug:
+        msg: "Subscription: {{ cfg.json.license_info.subscription_name | default('keine') }}, gültig: {{ cfg.json.license_info.valid_key | default(false) }}"
