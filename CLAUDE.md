@@ -306,8 +306,9 @@ ansible/
   templates/               Jinja2-Vorlagen für das generierte YAML
   aap-config/              Config as Code: Organisation, Teams, User, Credentials, Projekte, Job-Templates, Workflow, RBAC
 gitops/
-  bootstrap/               App-of-Apps für den Hub (einziges manuelles apply)
-  platform/                Operatoren und Konfiguration: ACM, ESO, RHOAI mit Abhängigkeiten, GPU, Portal
+  bootstrap/               OpenShift GitOps + Root-Application (einziges manuelles apply, scripts/bootstrap-gitops.sh)
+  platform/                App-of-Apps: je Komponente eine Argo-CD-Application (Sync-Waves)
+  components/<name>/       Manifeste der Komponenten: acm, cert-manager, connectivity-link, leader-worker-set, nfd, gpu-operator, monitoring, rhoai, ...
   fleet/                   ManagedClusterSets, Placements, GitOpsCluster, Policies
   ai/                      MaaS: Subscriptions, Granite-Deployment, ExternalProvider/Model Anthropic, Samples
   apps/localnews/          ApplicationSet (Pull) auf ice-demo, gepinnt

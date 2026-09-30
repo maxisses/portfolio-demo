@@ -12,3 +12,6 @@ Jeder Arbeitsblock: Uhrzeit, Dauer, Ergebnis, wer (Agent = Claude Code, Mensch =
 | 30.09.2026 | 17:45 | 10 min | Agent | Ansible `aap-prepare`: VM vorbereitet, Let's-Encrypt-Zertifikat per Route53-DNS-Challenge über die Instance-Rolle |
 | 30.09.2026 | 19:30 | 20 min | Agent | ROSA-Anmeldung: Service-Account-Secret wurde von Red Hat SSO abgelehnt; Terraform nutzt jetzt die `rosa login`-Sitzung (scripts/tf.sh). ROSA HCP 4.21.34 `portfolio-hub` gestartet |
 | 30.09.2026 | 19:45 | 20 min | Agent | AAP 2.7: Installer-Inventory (Growth + MCP-Server, Let's-Encrypt-Zertifikat) als Vorlage, Passwörter in Secrets Manager, Installation gestartet; Port 8448 für MCP geöffnet |
+| 30.09.2026 | 19:55 | 5 min | Agent | ROSA `portfolio-hub` fertig (36 Ressourcen, ~22 min): 4× m6i.2xlarge, OpenShift 4.21.34 |
+| 30.09.2026 | 20:00 | 10 min | Agent | AAP-Installer hing an der DB-Verbindung über die öffentliche IP; Fix als Code: eigener FQDN zeigt auf der VM auf die private IP (`aap-prepare.yml`) |
+| 30.09.2026 | 20:05 | 25 min | Agent | GitOps-Bootstrap, App-of-Apps; ACM 2.17, cert-manager, Connectivity Link, LeaderWorkerSet, NFD, GPU Operator, User Workload Monitoring, RHOAI 3.5 per Argo CD |
