@@ -30,6 +30,13 @@ resource "aws_security_group" "aap" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
+    description = "AAP-MCP-Server (eigener Nginx)"
+    from_port   = 8448
+    to_port     = 8448
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
     description = "SSH vom Admin"
     from_port   = 22
     to_port     = 22

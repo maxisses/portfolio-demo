@@ -1,0 +1,108 @@
+---
+# Installiert AAP 2.7 containerized (Growth-Topologie + MCP-Server) auf der AAP-VM.
+# Voraussetzungen: aap-prepare.yml gelaufen; in der Umgebung (scripts/load-env.sh):
+#   AAP_INSTALLER_TARBALL, REGISTRY_USERNAME, REGISTRY_PASSWORD
+# Passwörter werden einmalig zufällig erzeugt und in AWS Secrets Manager abgelegt
+# (portfolio-demo/aap/installer). Sie stehen nie in Git.
+- name: Installer-Secrets in AWS Secrets Manager sicherstellen
+  hosts: localhost
+  gather_facts: false
+  vars:
+    secret_name: portfolio-demo/aap/installer
+  tasks:
+    - name: Vorhandenes Secret lesen
+      ansible.builtin.command: aws secretsmanager get-secret-value --secret-id {{ secret_name }} --query SecretString --output text
+      register: existing
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Secret mit Zufallspasswörtern anlegen
+      when: existing.rc != 0
+      ansible.builtin.command:
+        argv:
+          - aws
+          - secretsmanager
+          - create-secret
+          - --name
+          - "{{ secret_name }}"
+          - --description
+          - AAP 2.7 Installer-Passwoerter (portfolio-demo)
+          - --secret-string
+          - "{{ generated | to_json }}"
+      vars:
+        generated:
+          admin_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=20) }}"
+          postgresql_admin_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=24) }}"
+          gateway_pg_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=24) }}"
+          controller_pg_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=24) }}"
+          hub_pg_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=24) }}"
+          eda_pg_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=24) }}"
+          metrics_pg_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=24) }}"
+          metrics_read_pg_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=24) }}"
+      no_log: true
+
+    - name: Secret (neu) lesen
+      ansible.builtin.command: aws secretsmanager get-secret-value --secret-id {{ secret_name }} --query SecretString --output text
+      register: final
+      changed_when: false
+      no_log: true
+
+    - name: Für den nächsten Play merken
+      ansible.builtin.set_fact:
+        aap_secrets: "{{ final.stdout | from_json }}"
+      no_log: true
+
+- name: AAP 2.7 installieren
+  hosts: aap
+  gather_facts: true
+  vars:
+    aap_fqdn: "{{ inventory_hostname }}"
+    cert_dir: /home/ec2-user/aap-certs
+    tarball: "{{ lookup('env', 'AAP_INSTALLER_TARBALL') }}"
+    registry_username: "{{ lookup('env', 'REGISTRY_USERNAME') }}"
+    registry_password: "{{ lookup('env', 'REGISTRY_PASSWORD') }}"
+    s: "{{ hostvars['localhost'].aap_secrets }}"
+    setup_dir: /home/ec2-user/aap-setup
+  tasks:
+    - name: Voraussetzungen prüfen
+      ansible.builtin.assert:
+        that:
+          - tarball | length > 0
+          - registry_username | length > 0
+          - registry_password | length > 0
+        fail_msg: AAP_INSTALLER_TARBALL, REGISTRY_USERNAME oder REGISTRY_PASSWORD fehlt (scripts/load-env.sh)
+
+    - name: Setup-Verzeichnis
+      ansible.builtin.file:
+        path: "{{ setup_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Installer auspacken
+      ansible.builtin.unarchive:
+        src: "{{ tarball }}"
+        dest: "{{ setup_dir }}"
+        extra_opts: [--strip-components=1]
+
+    - name: Inventory rendern
+      ansible.builtin.template:
+        src: ../templates/aap-inventory-growth.j2
+        dest: "{{ setup_dir }}/inventory-portfolio"
+        mode: "0600"
+      no_log: true
+
+    - name: Installer ausführen (dauert 30-45 Minuten)
+      ansible.builtin.command:
+        cmd: ansible-playbook -i inventory-portfolio ansible.containerized_installer.install
+        chdir: "{{ setup_dir }}"
+      environment:
+        ANSIBLE_LOG_PATH: "{{ setup_dir }}/install.log"
+      async: 5400
+      poll: 30
+      register: install
+      changed_when: true
+
+    - name: Ergebnis
+      ansible.builtin.debug:
+        msg: "AAP läuft unter https://{{ aap_fqdn }} (Admin-Passwort: Secrets Manager portfolio-demo/aap/installer)"

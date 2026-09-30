@@ -1,0 +1,65 @@
+# AAP 2.7 containerized, Growth-Topologie auf einer VM, plus MCP-Server.
+# Gerendert von playbooks/aap-install.yml. Enthält Secrets und liegt nur auf der VM.
+[automationgateway]
+{{ aap_fqdn }}
+
+[automationcontroller]
+{{ aap_fqdn }}
+
+[automationhub]
+{{ aap_fqdn }}
+
+[automationeda]
+{{ aap_fqdn }}
+
+[automationmetrics]
+{{ aap_fqdn }}
+
+[ansiblemcp]
+{{ aap_fqdn }}
+
+[database]
+{{ aap_fqdn }}
+
+[all:vars]
+ansible_connection=local
+
+registry_username={{ registry_username }}
+registry_password={{ registry_password }}
+
+postgresql_admin_username=postgres
+postgresql_admin_password={{ s.postgresql_admin_password }}
+
+redis_mode=standalone
+
+gateway_admin_password={{ s.admin_password }}
+gateway_pg_host={{ aap_fqdn }}
+gateway_pg_password={{ s.gateway_pg_password }}
+gateway_main_url=https://{{ aap_fqdn }}
+gateway_tls_cert={{ cert_dir }}/aap.crt
+gateway_tls_key={{ cert_dir }}/aap.key
+
+controller_admin_password={{ s.admin_password }}
+controller_pg_host={{ aap_fqdn }}
+controller_pg_password={{ s.controller_pg_password }}
+controller_percent_memory_capacity=0.5
+
+hub_admin_password={{ s.admin_password }}
+hub_pg_host={{ aap_fqdn }}
+hub_pg_password={{ s.hub_pg_password }}
+hub_seed_collections=false
+
+eda_admin_password={{ s.admin_password }}
+eda_pg_host={{ aap_fqdn }}
+eda_pg_password={{ s.eda_pg_password }}
+
+automationmetrics_pg_host={{ aap_fqdn }}
+automationmetrics_pg_password={{ s.metrics_pg_password }}
+automationmetrics_controller_read_pg_host={{ aap_fqdn }}
+automationmetrics_controller_read_pg_password={{ s.metrics_read_pg_password }}
+
+# MCP-Server (Technology Preview): Schreibmodus an, Rechte kommen aus dem AAP-RBAC.
+mcp_allow_write_operations=true
+mcp_public_base_url=https://{{ aap_fqdn }}
+mcp_tls_cert={{ cert_dir }}/aap.crt
+mcp_tls_key={{ cert_dir }}/aap.key

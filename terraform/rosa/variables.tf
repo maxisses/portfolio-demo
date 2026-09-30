@@ -11,7 +11,7 @@ variable "cluster_name" {
 variable "openshift_version" {
   description = "OpenShift AI 3.5 unterstützt höchstens 4.21"
   type        = string
-  default     = "4.21.17"
+  default     = "4.21.34"
 }
 
 variable "compute_machine_type" {
