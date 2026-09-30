@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "aap": {
+      "type": "http",
+      "url": "https://aap.sandbox3481.opentlc.com:8448/mcp/job_management",
+      "headers": { "Authorization": "Bearer ${AAP_AGENT_TOKEN}" }
+    },
+    "openshift": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "kubernetes-mcp-server@0.0.67", "--read-only", "--cluster-provider", "kubeconfig", "--kubeconfig", "__KUBECONFIG__"]
+    }
+  }
+}
