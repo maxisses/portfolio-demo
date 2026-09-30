@@ -72,7 +72,8 @@
               file:
                 template.ssh_key: "{{ '{{' }} ssh_key {{ '}}' }}\n"
               env:
-                GIT_SSH_COMMAND: "ssh -i {{ '{{' }} tower.filename.ssh_key {{ '}}' }} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+                # GIT_SSH_COMMAND darf ein Credential nicht setzen; das Playbook baut ihn aus dem Pfad.
+                GIT_DEPLOY_KEY_FILE: "{{ '{{' }} tower.filename.ssh_key {{ '}}' }}"
 
     - name: Credential-Typ-IDs der eingebauten Typen
       ansible.builtin.uri:
