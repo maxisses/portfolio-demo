@@ -1,0 +1,59 @@
+# Von AAP generierte Namespaces: Hub per Push, Edge per Pull.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tenants-portfolio-hub
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/maxisses/portfolio-demo.git
+    targetRevision: main
+    path: gitops/tenants/portfolio-hub
+    directory:
+      recurse: true
+      exclude: "*.md"
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: tenants-edge
+  namespace: openshift-gitops
+spec:
+  generators:
+    - clusterDecisionResource:
+        configMapRef: acm-placement
+        labelSelector:
+          matchLabels:
+            cluster.open-cluster-management.io/placement: edge
+        requeueAfterSeconds: 30
+  template:
+    metadata:
+      name: "tenants-{{name}}"
+      labels:
+        apps.open-cluster-management.io/pull-to-ocm-managed-cluster: "true"
+      annotations:
+        argocd.argoproj.io/skip-reconcile: "true"
+        apps.open-cluster-management.io/ocm-managed-cluster: "{{name}}"
+        apps.open-cluster-management.io/ocm-managed-cluster-app-namespace: openshift-gitops
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/maxisses/portfolio-demo.git
+        targetRevision: main
+        path: "gitops/tenants/{{name}}"
+        directory:
+          recurse: true
+          exclude: "*.md"
+      destination:
+        server: https://kubernetes.default.svc
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

@@ -1,0 +1,49 @@
+# Demo-Moment "Live-Fix": Die Policy steht auf inform und ist damit auf allen
+# Clustern nicht compliant. Wer remediationAction auf enforce stellt und committet,
+# lässt ACM den Banner auf Hub und Edge ausrollen.
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: konsolen-banner
+  namespace: portfolio-policies
+  annotations:
+    policy.open-cluster-management.io/standards: Portfolio-Demo
+    policy.open-cluster-management.io/categories: Betrieb
+    policy.open-cluster-management.io/controls: Kennzeichnung verwalteter Cluster
+spec:
+  remediationAction: inform
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: konsolen-banner
+        spec:
+          severity: low
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: console.openshift.io/v1
+                kind: ConsoleNotification
+                metadata:
+                  name: portfolio-demo
+                spec:
+                  text: "Verwaltet von portfolio-hub · Konfiguration aus Git · Policy durchgesetzt von ACM"
+                  location: BannerTop
+                  color: "#FFFFFF"
+                  backgroundColor: "#EE0000"
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: konsolen-banner
+  namespace: portfolio-policies
+placementRef:
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+  name: alle
+subjects:
+  - apiGroup: policy.open-cluster-management.io
+    kind: Policy
+    name: konsolen-banner

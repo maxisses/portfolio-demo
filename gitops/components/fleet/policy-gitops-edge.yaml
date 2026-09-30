@@ -1,0 +1,71 @@
+# Edge-Cluster bekommen ihr eigenes Argo CD (Pull-Modell): Die Policy installiert
+# OpenShift GitOps und erlaubt dem lokalen Argo CD, Namespaces und Apps anzulegen.
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: openshift-gitops-am-edge
+  namespace: portfolio-policies
+  annotations:
+    policy.open-cluster-management.io/standards: Portfolio-Demo
+    policy.open-cluster-management.io/categories: GitOps
+    policy.open-cluster-management.io/controls: Pull-Modell
+spec:
+  remediationAction: enforce
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1beta1
+        kind: OperatorPolicy
+        metadata:
+          name: openshift-gitops-operator
+        spec:
+          remediationAction: enforce
+          severity: high
+          complianceType: musthave
+          upgradeApproval: Automatic
+          subscription:
+            name: openshift-gitops-operator
+            namespace: openshift-gitops-operator
+            channel: gitops-1.22
+            source: redhat-operators
+            sourceNamespace: openshift-marketplace
+          operatorGroup:
+            name: openshift-gitops-operator
+            namespace: openshift-gitops-operator
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: argocd-darf-verwalten
+        spec:
+          remediationAction: enforce
+          severity: medium
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRoleBinding
+                metadata:
+                  name: openshift-gitops-cluster-admin
+                roleRef:
+                  apiGroup: rbac.authorization.k8s.io
+                  kind: ClusterRole
+                  name: cluster-admin
+                subjects:
+                  - kind: ServiceAccount
+                    name: openshift-gitops-argocd-application-controller
+                    namespace: openshift-gitops
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: openshift-gitops-am-edge
+  namespace: portfolio-policies
+placementRef:
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+  name: edge
+subjects:
+  - apiGroup: policy.open-cluster-management.io
+    kind: Policy
+    name: openshift-gitops-am-edge

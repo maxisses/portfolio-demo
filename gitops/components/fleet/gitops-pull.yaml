@@ -1,0 +1,40 @@
+# Argo CD auf dem Hub kennt die Edge-Cluster über ACM (GitOpsCluster), verteilt aber
+# per Pull: ApplicationSets mit Pull-Annotationen werden als ManifestWork an das lokale
+# Argo CD der Edge-Cluster übergeben. Der Hub braucht keinen Zugriff auf die Edge-APIs.
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: edge
+  namespace: openshift-gitops
+spec:
+  clusterSets: [edge]
+  tolerations:
+    - key: cluster.open-cluster-management.io/unreachable
+      operator: Exists
+    - key: cluster.open-cluster-management.io/unavailable
+      operator: Exists
+---
+apiVersion: apps.open-cluster-management.io/v1beta1
+kind: GitOpsCluster
+metadata:
+  name: edge
+  namespace: openshift-gitops
+spec:
+  argoServer:
+    cluster: local-cluster
+    argoNamespace: openshift-gitops
+  placementRef:
+    apiVersion: cluster.open-cluster-management.io/v1beta1
+    kind: Placement
+    name: edge
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: acm-placement
+  namespace: openshift-gitops
+data:
+  apiVersion: cluster.open-cluster-management.io/v1beta1
+  kind: placementdecisions
+  statusListKey: decisions
+  matchKey: clusterName

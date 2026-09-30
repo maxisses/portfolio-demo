@@ -1,0 +1,47 @@
+# Namespace für die Policies samt Placements: "edge" = ocp19/ocp20, "alle" = Edge plus Hub.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: portfolio-policies
+---
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: edge
+  namespace: portfolio-policies
+spec:
+  clusterSet: edge
+---
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: default
+  namespace: portfolio-policies
+spec:
+  clusterSet: default
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: edge
+  namespace: portfolio-policies
+spec:
+  clusterSets: [edge]
+  tolerations:
+    - key: cluster.open-cluster-management.io/unreachable
+      operator: Exists
+    - key: cluster.open-cluster-management.io/unavailable
+      operator: Exists
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: alle
+  namespace: portfolio-policies
+spec:
+  clusterSets: [edge, default]
+  tolerations:
+    - key: cluster.open-cluster-management.io/unreachable
+      operator: Exists
+    - key: cluster.open-cluster-management.io/unavailable
+      operator: Exists

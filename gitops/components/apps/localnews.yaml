@@ -1,0 +1,44 @@
+# Localnews auf den Edge-Clustern, im Pull-Modell. Chart aus maxisses/ice-demo, gepinnt.
+# Die Routen brauchen die Apps-Domain des Zielclusters; sie folgt dem Namensschema des Labs.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: localnews-edge
+  namespace: openshift-gitops
+spec:
+  generators:
+    - clusterDecisionResource:
+        configMapRef: acm-placement
+        labelSelector:
+          matchLabels:
+            cluster.open-cluster-management.io/placement: edge
+        requeueAfterSeconds: 30
+  template:
+    metadata:
+      name: "localnews-{{name}}"
+      labels:
+        apps.open-cluster-management.io/pull-to-ocm-managed-cluster: "true"
+      annotations:
+        argocd.argoproj.io/skip-reconcile: "true"
+        apps.open-cluster-management.io/ocm-managed-cluster: "{{name}}"
+        apps.open-cluster-management.io/ocm-managed-cluster-app-namespace: openshift-gitops
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/maxisses/ice-demo.git
+        targetRevision: c4fe2e4f
+        path: gitops/helm
+        helm:
+          releaseName: localnews
+          valueFiles: [values.yaml, values-image.yaml]
+          valuesObject:
+            clusterDomain: "apps.{{name}}.stormshift.coe.muc.redhat.com"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: localnews
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

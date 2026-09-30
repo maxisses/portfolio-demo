@@ -4,3 +4,7 @@ resources:
   - clusterset.yaml
   - ocp19.yaml
   - ocp20.yaml
+  - policies-base.yaml
+  - policy-gitops-edge.yaml
+  - policy-console-banner.yaml
+  - gitops-pull.yaml
