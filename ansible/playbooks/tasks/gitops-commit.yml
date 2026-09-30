@@ -5,7 +5,8 @@
 - name: Deploy Key aus dem Credential als Datei ablegen
   ansible.builtin.copy:
     dest: "{{ gitops_workdir }}-key"
-    content: "{{ lookup('ansible.builtin.env', 'GIT_DEPLOY_KEY_B64') | b64decode }}"
+    # OpenSSH verlangt den abschließenden Zeilenumbruch; lookup('file') hatte ihn entfernt.
+    content: "{{ (lookup('ansible.builtin.env', 'GIT_DEPLOY_KEY_B64') | b64decode | trim) ~ '\n' }}"
     mode: "0600"
   no_log: true
 
