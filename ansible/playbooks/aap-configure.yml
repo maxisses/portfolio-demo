@@ -156,6 +156,29 @@
       vars:
         ensure: { key: project, api: controller, endpoint: projects, query: "name=portfolio-demo", body: { name: portfolio-demo, organization: "{{ aap_ids.org }}", scm_type: git, scm_url: "{{ aap_project_repo }}", scm_branch: main, scm_update_on_launch: true, default_environment: "{{ aap_ids.ee }}" } }
 
+    - name: Projekt aus Git aktualisieren (neue Playbooks)
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/projects/{{ aap_ids.project }}/update/"
+        method: POST
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+        status_code: [202]
+      register: _upd
+      changed_when: false
+
+    - name: Warten, bis das Projekt-Update durch ist
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/project_updates/{{ _upd.json.id }}/"
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+      register: _pu
+      until: _pu.json.status in ['successful', 'failed', 'error']
+      failed_when: _pu.json.status != 'successful'
+      retries: 30
+      delay: 5
+
     - name: Warten, bis das Projekt synchronisiert ist
       ansible.builtin.uri:
         url: "{{ aap_url }}/api/controller/v2/projects/{{ aap_ids.project }}/"
