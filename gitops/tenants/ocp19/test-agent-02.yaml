@@ -1,5 +1,5 @@
 # Erzeugt von AAP (Katalog-Item "Namespace"). Nicht von Hand ändern.
-# Bestellt von agent-claude über agent, AAP-Job 13, 2026-09-30T20:54Z
+# Bestellt von agent-claude über agent, AAP-Job 16, 2026-09-30T20:56Z
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -8,7 +8,7 @@ metadata:
     portfolio-demo/managed-by: aap
     portfolio-demo/team: demo
     portfolio-demo/ordered-by: agent
-    portfolio-demo/request-id: "13"
+    portfolio-demo/request-id: "16"
   annotations:
     openshift.io/requester: agent-claude
     openshift.io/display-name: "test-agent-02 (Team demo)"
