@@ -2,11 +2,18 @@
 # Schreibt Dateien ins GitOps-Repo und pusht per Deploy Key (Credential "Git Deploy Key").
 # Eingaben: commit.files (Liste {path, content}), commit.message
 # Ergebnis: commit_sha
+- name: Deploy Key aus dem Credential als Datei ablegen
+  ansible.builtin.copy:
+    dest: "{{ gitops_workdir }}-key"
+    content: "{{ lookup('ansible.builtin.env', 'GIT_DEPLOY_KEY_B64') | b64decode }}"
+    mode: "0600"
+  no_log: true
+
 - name: Arbeitskopie holen
   ansible.builtin.command:
     cmd: git clone --depth 20 {{ gitops_repo_ssh }} {{ _wd }}
   environment: &gitenv
-    GIT_SSH_COMMAND: "ssh -i {{ lookup('env', 'GIT_DEPLOY_KEY_FILE') }} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+    GIT_SSH_COMMAND: "ssh -i {{ gitops_workdir }}-key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
   vars:
     _wd: "{{ gitops_workdir }}"
   changed_when: false

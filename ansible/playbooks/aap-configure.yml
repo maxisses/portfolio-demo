@@ -66,14 +66,13 @@
             description: SSH-Schlüssel, mit dem Jobs generiertes YAML nach Git pushen
             inputs:
               fields:
-                - { id: ssh_key, type: string, label: Privater Schlüssel, secret: true, multiline: true }
-              required: [ssh_key]
+                - { id: ssh_key_b64, type: string, label: Privater Schlüssel (Base64), secret: true }
+              required: [ssh_key_b64]
             injectors:
-              file:
-                template.ssh_key: "{{ '{{' }} ssh_key {{ '}}' }}\n"
+              # Base64 in einer Umgebungsvariable statt Datei-Injector: mehrzeilige Schlüssel
+              # kamen über den Datei-Injector nicht formatgetreu an. Das Playbook schreibt die Datei.
               env:
-                # GIT_SSH_COMMAND darf ein Credential nicht setzen; das Playbook baut ihn aus dem Pfad.
-                GIT_DEPLOY_KEY_FILE: "{{ '{{' }} tower.filename.ssh_key {{ '}}' }}"
+                GIT_DEPLOY_KEY_B64: "{{ '{{' }} ssh_key_b64 {{ '}}' }}"
 
     - name: Credential-Typ-IDs der eingebauten Typen
       ansible.builtin.uri:
@@ -90,7 +89,7 @@
         - key: cred_deploykey
           name: GitHub Deploy Key (portfolio-demo)
           credential_type: "{{ aap_ids.ctype_deploykey }}"
-          inputs: { ssh_key: "{{ lookup('ansible.builtin.file', repo_root ~ '/local/github-deploy-key') }}" }
+          inputs: { ssh_key_b64: "{{ lookup('ansible.builtin.file', repo_root ~ '/local/github-deploy-key') | b64encode }}" }
         - key: cred_tfstate
           name: Terraform State (S3)
           credential_type: "{{ _builtin_types.results[0].json.results[0].id }}"
