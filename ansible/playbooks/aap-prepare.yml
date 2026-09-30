@@ -15,6 +15,14 @@
       ansible.builtin.hostname:
         name: "{{ aap_fqdn }}"
 
+    - name: Eigener FQDN zeigt auf der VM auf die private IP
+      # Sonst gehen Verbindungen zu Datenbank und Diensten über die öffentliche
+      # Elastic IP hinaus und scheitern an der Security Group.
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '\s{{ aap_fqdn | regex_escape }}$'
+        line: "{{ ansible_default_ipv4.address }} {{ aap_fqdn }}"
+
     - name: Pakete für Installer und certbot
       ansible.builtin.dnf:
         name: [podman, python3-pip, ansible-core, tar, rsync, bash-completion, jq]
