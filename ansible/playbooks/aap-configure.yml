@@ -1,0 +1,178 @@
+---
+# Konfiguriert AAP als Code über die REST-API (idempotent):
+# Organisation, Nutzer, Credential-Typen, Credentials, EE, Inventory, Projekt, Job-Templates, RBAC.
+# Secrets kommen aus AWS Secrets Manager bzw. local/ und landen nur in AAP, nie in Git.
+- name: AAP konfigurieren
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../aap-config/objects.yml
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+  tasks:
+    - name: Admin-Passwort
+      ansible.builtin.set_fact:
+        aap_admin_password: "{{ (lookup('ansible.builtin.pipe', 'aws secretsmanager get-secret-value --secret-id portfolio-demo/aap/installer --query SecretString --output text') | from_json).admin_password }}"
+        account_id: "{{ lookup('ansible.builtin.pipe', 'aws sts get-caller-identity --query Account --output text') }}"
+      no_log: true
+
+    - name: Nutzer-Passwörter lesen oder einmalig erzeugen
+      ansible.builtin.shell: |
+        set -e
+        if ! aws secretsmanager get-secret-value --secret-id portfolio-demo/aap/users --query SecretString --output text 2>/dev/null; then
+          body=$(python3 -c 'import json,secrets; print(json.dumps({u: secrets.token_urlsafe(15) for u in ["max","agent-claude"]}))')
+          aws secretsmanager create-secret --name portfolio-demo/aap/users --secret-string "$body" >/dev/null
+          echo "$body"
+        fi
+      register: _users
+      changed_when: false
+      no_log: true
+
+    - name: Passwörter merken
+      ansible.builtin.set_fact:
+        user_passwords: "{{ _users.stdout | from_json }}"
+      no_log: true
+
+    # --- Gateway: Organisation und Nutzer ---------------------------------
+    - name: Organisation
+      ansible.builtin.include_tasks: tasks/aap-ensure.yml
+      vars:
+        ensure: { key: org, api: gateway, endpoint: organizations, query: "name={{ aap_org | urlencode }}", body: { name: "{{ aap_org }}", description: "Self-Service-Katalog der Portfolio-Demo" } }
+
+    - name: Nutzer
+      ansible.builtin.include_tasks: tasks/aap-ensure.yml
+      loop: "{{ aap_users }}"
+      vars:
+        ensure:
+          key: "user_{{ item.username }}"
+          api: gateway
+          endpoint: users
+          query: "username={{ item.username }}"
+          no_log: true
+          body: "{{ item | combine({'password': user_passwords[item.username], 'is_superuser': false}) }}"
+
+    # --- Controller: Credential-Typ für Git-Push mit Deploy Key -------------
+    - name: Credential-Typ "Git Deploy Key"
+      ansible.builtin.include_tasks: tasks/aap-ensure.yml
+      vars:
+        ensure:
+          key: ctype_deploykey
+          api: controller
+          endpoint: credential_types
+          query: "name={{ 'Git Deploy Key' | urlencode }}"
+          body:
+            name: Git Deploy Key
+            kind: cloud
+            description: SSH-Schlüssel, mit dem Jobs generiertes YAML nach Git pushen
+            inputs:
+              fields:
+                - { id: ssh_key, type: string, label: Privater Schlüssel, secret: true, multiline: true }
+              required: [ssh_key]
+            injectors:
+              file:
+                template.ssh_key: "{{ '{{' }} ssh_key {{ '}}' }}\n"
+              env:
+                GIT_SSH_COMMAND: "ssh -i {{ '{{' }} tower.filename.ssh_key {{ '}}' }} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+
+    - name: Credential-Typ-IDs der eingebauten Typen
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/credential_types/?name={{ item | urlencode }}"
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+      loop: [Terraform backend configuration]
+      register: _builtin_types
+
+    - name: Credentials
+      ansible.builtin.include_tasks: tasks/aap-ensure.yml
+      loop:
+        - key: cred_deploykey
+          name: GitHub Deploy Key (portfolio-demo)
+          credential_type: "{{ aap_ids.ctype_deploykey }}"
+          inputs: { ssh_key: "{{ lookup('ansible.builtin.file', repo_root ~ '/local/github-deploy-key') }}" }
+        - key: cred_tfstate
+          name: Terraform State (S3)
+          credential_type: "{{ _builtin_types.results[0].json.results[0].id }}"
+          inputs:
+            configuration: |
+              bucket       = "portfolio-demo-tfstate-{{ account_id }}"
+              region       = "eu-central-1"
+              use_lockfile = true
+              encrypt      = true
+      loop_control: { label: "{{ item.name }}" }
+      vars:
+        ensure:
+          key: "{{ item.key }}"
+          api: controller
+          endpoint: credentials
+          query: "name={{ item.name | urlencode }}"
+          no_log: true
+          body: { name: "{{ item.name }}", organization: "{{ aap_ids.org }}", credential_type: "{{ item.credential_type }}", inputs: "{{ item.inputs }}" }
+
+    # --- Controller: EE, Inventory, Projekt -------------------------------
+    - name: Execution Environment
+      ansible.builtin.include_tasks: tasks/aap-ensure.yml
+      vars:
+        ensure: { key: ee, api: controller, endpoint: execution_environments, query: "name=portfolio-demo-ee", body: { name: portfolio-demo-ee, image: "{{ aap_ee_image }}", pull: missing, organization: "{{ aap_ids.org }}", description: "Terraform 1.16.4, cloud.terraform, kubernetes.core, amazon.aws" } }
+
+    - name: Inventory
+      ansible.builtin.include_tasks: tasks/aap-ensure.yml
+      vars:
+        ensure: { key: inv, api: controller, endpoint: inventories, query: "name={{ 'Portfolio Demo' | urlencode }}", body: { name: Portfolio Demo, organization: "{{ aap_ids.org }}" } }
+
+    - name: Host localhost im Inventory
+      ansible.builtin.include_tasks: tasks/aap-ensure.yml
+      vars:
+        ensure: { key: host_localhost, api: controller, endpoint: "inventories/{{ aap_ids.inv }}/hosts", query: "name=localhost", body: { name: localhost, variables: "ansible_connection: local\nansible_python_interpreter: \"{{ '{{' }} ansible_playbook_python {{ '}}' }}\"" } }
+
+    - name: Projekt
+      ansible.builtin.include_tasks: tasks/aap-ensure.yml
+      vars:
+        ensure: { key: project, api: controller, endpoint: projects, query: "name=portfolio-demo", body: { name: portfolio-demo, organization: "{{ aap_ids.org }}", scm_type: git, scm_url: "{{ aap_project_repo }}", scm_branch: main, scm_update_on_launch: true, default_environment: "{{ aap_ids.ee }}" } }
+
+    - name: Warten, bis das Projekt synchronisiert ist
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/projects/{{ aap_ids.project }}/"
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+      register: _proj
+      until: _proj.json.status == 'successful'
+      retries: 30
+      delay: 5
+
+    # --- Job-Templates ----------------------------------------------------
+    - name: "Job-Template: Terraform Plan (Drift-Check)"
+      ansible.builtin.include_tasks: tasks/aap-ensure.yml
+      vars:
+        ensure:
+          key: jt_tfplan
+          api: controller
+          endpoint: job_templates
+          query: "name={{ 'Terraform: Plan (Drift-Check)' | urlencode }}"
+          body:
+            name: "Terraform: Plan (Drift-Check)"
+            description: Rechnet terraform plan für einen Baustein gegen den State in S3 und meldet Abweichungen
+            organization: "{{ aap_ids.org }}"
+            project: "{{ aap_ids.project }}"
+            playbook: ansible/playbooks/tf-plan.yml
+            inventory: "{{ aap_ids.inv }}"
+            execution_environment: "{{ aap_ids.ee }}"
+            ask_variables_on_launch: true
+            extra_vars: "{{ {'tf_dir': 'foundation', 'tf_variables': {'admin_cidr': lookup('env', 'TF_VAR_admin_cidr'), 'ssh_public_key': lookup('ansible.builtin.file', '~/.ssh/portfolio-demo.pub')}} | to_nice_yaml }}"
+
+    - name: Terraform-State-Credential an das Template hängen
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/job_templates/{{ aap_ids.jt_tfplan }}/credentials/"
+        method: POST
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+        body_format: json
+        body: { id: "{{ aap_ids.cred_tfstate }}" }
+        status_code: [204, 400]
+      changed_when: false
+
+    - name: Übersicht
+      ansible.builtin.debug:
+        var: aap_ids

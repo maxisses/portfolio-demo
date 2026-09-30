@@ -1,0 +1,32 @@
+---
+# Idempotent: Objekt über die AAP-API suchen, anlegen oder aktualisieren.
+# Eingaben: ensure.api (gateway|controller), ensure.endpoint, ensure.query, ensure.body
+# Ergebnis: aap_ids[ensure.key] = ID des Objekts
+- name: "Suchen: {{ ensure.endpoint }} {{ ensure.query }}"
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/{{ 'gateway/v1' if ensure.api == 'gateway' else 'controller/v2' }}/{{ ensure.endpoint }}/?{{ ensure.query }}"
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+  register: _found
+  no_log: "{{ ensure.no_log | default(false) }}"
+
+- name: "Anlegen oder aktualisieren: {{ ensure.key }}"
+  ansible.builtin.uri:
+    url: >-
+      {{ aap_url }}/api/{{ 'gateway/v1' if ensure.api == 'gateway' else 'controller/v2' }}/{{ ensure.endpoint }}/{{
+      (_found.json.results[0].id | string) ~ '/' if _found.json.count > 0 else '' }}
+    method: "{{ 'PATCH' if _found.json.count > 0 else 'POST' }}"
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body: "{{ ensure.body }}"
+    status_code: [200, 201]
+  register: _saved
+  changed_when: _found.json.count == 0
+  no_log: "{{ ensure.no_log | default(false) }}"
+
+- name: "ID merken: {{ ensure.key }}"
+  ansible.builtin.set_fact:
+    aap_ids: "{{ aap_ids | default({}) | combine({ensure.key: _saved.json.id}) }}"
