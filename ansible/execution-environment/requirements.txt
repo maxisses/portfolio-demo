@@ -1,0 +1,4 @@
+boto3>=1.34
+botocore>=1.34
+kubernetes>=30.1.0
+jmespath

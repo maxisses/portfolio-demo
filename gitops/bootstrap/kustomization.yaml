@@ -1,0 +1,6 @@
+# Schritt 1 des Bootstraps: OpenShift GitOps Operator installieren.
+# Schritt 2 (root-app.yaml) folgt, sobald die Argo-CD-CRDs da sind: scripts/bootstrap-gitops.sh
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - gitops-operator.yaml

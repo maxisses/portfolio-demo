@@ -1,0 +1,44 @@
+---
+# Baut das Execution Environment nativ (x86_64) auf der AAP-VM und pusht es nach Quay.
+# Umgebung (scripts/load-env.sh): REGISTRY_USERNAME/PASSWORD, QUAY_USERNAME/PASSWORD
+- name: Execution Environment bauen und pushen
+  hosts: aap
+  gather_facts: false
+  vars:
+    ee_image: quay.io/mdargatz/portfolio-demo-ee
+    ee_tag: "1.0.0"
+    build_dir: /home/ec2-user/ee-build
+    venv: /home/ec2-user/.venv-builder
+  tasks:
+    - name: ansible-builder in eigenem venv
+      ansible.builtin.pip:
+        name: ansible-builder>=3.1
+        virtualenv: "{{ venv }}"
+        virtualenv_command: python3 -m venv
+
+    - name: EE-Definition kopieren
+      ansible.builtin.copy:
+        src: ../execution-environment/
+        dest: "{{ build_dir }}/"
+        mode: preserve
+
+    - name: Bei den Registries anmelden
+      ansible.builtin.command:
+        argv: [podman, login, -u, "{{ item.user }}", -p, "{{ item.password }}", "{{ item.registry }}"]
+      loop:
+        - { registry: registry.redhat.io, user: "{{ lookup('env', 'REGISTRY_USERNAME') }}", password: "{{ lookup('env', 'REGISTRY_PASSWORD') }}" }
+        - { registry: quay.io, user: "{{ lookup('env', 'QUAY_USERNAME') }}", password: "{{ lookup('env', 'QUAY_PASSWORD') }}" }
+      changed_when: false
+      no_log: true
+
+    - name: Bauen
+      ansible.builtin.command:
+        cmd: "{{ venv }}/bin/ansible-builder build -f execution-environment.yml -c context -t {{ ee_image }}:{{ ee_tag }} --container-runtime podman"
+        chdir: "{{ build_dir }}"
+      async: 1800
+      poll: 15
+      changed_when: true
+
+    - name: Pushen
+      ansible.builtin.command: "podman push {{ ee_image }}:{{ ee_tag }}"
+      changed_when: true

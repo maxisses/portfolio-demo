@@ -1,0 +1,3 @@
+git-core [platform:rpm]
+unzip [platform:rpm]
+jq [platform:rpm]
