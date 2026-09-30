@@ -30,4 +30,14 @@ metadata:
   name: cluster
   annotations:
     argocd.argoproj.io/sync-wave: "5"
-spec: {}
+spec:
+  controllerConfig:
+    # Der Operator isoliert ESO standardmäßig per Deny-All. Der Controller darf
+    # zusätzlich nur ausgehend HTTPS (AWS STS und Secrets Manager).
+    networkPolicies:
+      - name: allow-egress-https
+        componentName: ExternalSecretsCoreController
+        egress:
+          - ports:
+              - protocol: TCP
+                port: 443
