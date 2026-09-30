@@ -1,0 +1,9 @@
+# MaaS braucht User Workload Monitoring für Token-Zählung und Rate-Limits.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |
+    enableUserWorkload: true

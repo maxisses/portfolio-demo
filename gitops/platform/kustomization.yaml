@@ -1,6 +1,11 @@
-# App-of-Apps: jede Datei hier ist eine Argo-CD-Application für eine Plattform-Komponente.
-# Die Manifeste der Komponenten liegen unter gitops/components/<name>.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - acm.yaml
+  - cert-manager.yaml
+  - connectivity-link.yaml
+  - gpu-operator.yaml
+  - leader-worker-set.yaml
+  - monitoring.yaml
+  - nfd.yaml
+  - rhoai.yaml
