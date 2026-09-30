@@ -149,7 +149,7 @@
     - name: Host localhost im Inventory
       ansible.builtin.include_tasks: tasks/aap-ensure.yml
       vars:
-        ensure: { key: host_localhost, api: controller, endpoint: "inventories/{{ aap_ids.inv }}/hosts", query: "name=localhost", body: { name: localhost, variables: "ansible_connection: local\nansible_python_interpreter: \"{{ '{{' }} ansible_playbook_python {{ '}}' }}\"" } }
+        ensure: { key: host_localhost, api: controller, endpoint: hosts, query: "name=localhost&inventory={{ aap_ids.inv }}", body: { name: localhost, inventory: "{{ aap_ids.inv }}", variables: "ansible_connection: local\nansible_python_interpreter: \"{{ '{{' }} ansible_playbook_python {{ '}}' }}\"" } }
 
     - name: Projekt
       ansible.builtin.include_tasks: tasks/aap-ensure.yml
