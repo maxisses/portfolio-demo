@@ -1,0 +1,35 @@
+# Helm-Chart des Ansible Automation Portals aus dem offiziellen OpenShift-Helm-Repo, gepinnt.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: portal
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.openshift.io
+    chart: redhat-rhaap-portal
+    targetRevision: 2.2.10
+    helm:
+      releaseName: redhat-rhaap-portal
+      valuesObject:
+        redhat-developer-hub:
+          global:
+            clusterRouterBase: apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+            host: portal.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+            pluginMode: oci
+            imageTagInfo: "2.2"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: aap-portal
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 1

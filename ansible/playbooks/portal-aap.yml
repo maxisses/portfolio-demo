@@ -1,0 +1,91 @@
+---
+# Verbindet das Ansible Automation Portal mit AAP: OAuth-Application und API-Token in AAP,
+# Werte nach AWS Secrets Manager (portfolio-demo/portal/*). Von dort holt External Secrets
+# sie in den Cluster (gitops/components/portal). Nichts davon landet in Git.
+- name: Portal an AAP anbinden
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../aap-config/objects.yml
+  vars:
+    portal_host: portal.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+    secret_aap: portfolio-demo/portal/aap
+    secret_registry: portfolio-demo/portal/registry-auth
+  tasks:
+    - name: Admin-Passwort
+      ansible.builtin.set_fact:
+        aap_admin_password: "{{ (lookup('ansible.builtin.pipe', 'aws secretsmanager get-secret-value --secret-id portfolio-demo/aap/installer --query SecretString --output text') | from_json).admin_password }}"
+      no_log: true
+
+    - name: Gibt es die Portal-Zugangsdaten schon?
+      ansible.builtin.command: aws secretsmanager describe-secret --secret-id {{ secret_aap }}
+      register: _exists
+      failed_when: false
+      changed_when: false
+
+    - name: Organisation
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/gateway/v1/organizations/?name={{ aap_org | urlencode }}"
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+      register: _org
+
+    - name: OAuth-Application und Token anlegen (nur beim ersten Mal, das Secret gibt AAP nur einmal aus)
+      when: _exists.rc != 0
+      block:
+        - name: OAuth-Application "Ansible Automation Portal"
+          ansible.builtin.uri:
+            url: "{{ aap_url }}/api/gateway/v1/applications/"
+            method: POST
+            user: admin
+            password: "{{ aap_admin_password }}"
+            force_basic_auth: true
+            body_format: json
+            body:
+              name: Ansible Automation Portal
+              organization: "{{ _org.json.results[0].id }}"
+              authorization_grant_type: authorization-code
+              client_type: confidential
+              redirect_uris: "https://{{ portal_host }}/api/auth/rhaap/handler/frame"
+            status_code: [201]
+          register: _app
+          no_log: true
+
+        - name: API-Token für das Portal (Katalog-Sync)
+          ansible.builtin.uri:
+            url: "{{ aap_url }}/api/gateway/v1/tokens/"
+            method: POST
+            user: admin
+            password: "{{ aap_admin_password }}"
+            force_basic_auth: true
+            body_format: json
+            body: { application: "{{ _app.json.id }}", scope: write, description: Ansible Automation Portal }
+            status_code: [201]
+          register: _tok
+          no_log: true
+
+        - name: Nach Secrets Manager
+          ansible.builtin.command:
+            argv:
+              - aws
+              - secretsmanager
+              - create-secret
+              - --name
+              - "{{ secret_aap }}"
+              - --secret-string
+              - "{{ {'aap-host-url': aap_url, 'oauth-client-id': _app.json.client_id, 'oauth-client-secret': _app.json.client_secret, 'aap-token': _tok.json.token} | to_json }}"
+          no_log: true
+
+    - name: Registry-Zugang für die Plugins (auth.json) nach Secrets Manager
+      ansible.builtin.shell: |
+        set -e
+        auth=$(printf '%s:%s' "$REGISTRY_USERNAME" "$REGISTRY_PASSWORD" | base64 | tr -d '\n')
+        json=$(printf '{"auths":{"registry.redhat.io":{"auth":"%s"}}}' "$auth")
+        if aws secretsmanager describe-secret --secret-id {{ secret_registry }} >/dev/null 2>&1; then
+          aws secretsmanager put-secret-value --secret-id {{ secret_registry }} --secret-string "$json" >/dev/null
+        else
+          aws secretsmanager create-secret --name {{ secret_registry }} --secret-string "$json" >/dev/null
+        fi
+      no_log: true
+      changed_when: false
