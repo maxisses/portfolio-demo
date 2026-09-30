@@ -1,0 +1,17 @@
+# Flotte: ein ClusterSet "edge" für die beiden Lab-Cluster. Die Cluster registrieren
+# sich selbst beim Hub (Pull), weil der Hub ihre APIs hinter dem VPN nicht erreicht.
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSet
+metadata:
+  name: edge
+spec:
+  clusterSelector:
+    selectorType: ExclusiveClusterSetLabel
+---
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: edge
+  namespace: openshift-gitops
+spec:
+  clusterSet: edge

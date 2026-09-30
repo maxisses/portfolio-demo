@@ -5,6 +5,7 @@ resources:
   - cert-manager.yaml
   - connectivity-link.yaml
   - external-secrets.yaml
+  - fleet.yaml
   - gpu-operator.yaml
   - leader-worker-set.yaml
   - maas.yaml

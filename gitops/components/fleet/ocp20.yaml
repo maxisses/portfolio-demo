@@ -1,0 +1,31 @@
+apiVersion: cluster.open-cluster-management.io/v1
+kind: ManagedCluster
+metadata:
+  name: ocp20
+  labels:
+    env: edge
+    cluster.open-cluster-management.io/clusterset: edge
+    # apps-domain setzt scripts/edge-import.sh, damit keine Lab-Hostnamen im Repo stehen
+spec:
+  hubAcceptsClient: true
+---
+apiVersion: agent.open-cluster-management.io/v1
+kind: KlusterletAddonConfig
+metadata:
+  name: ocp20
+  namespace: ocp20
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  clusterName: ocp20
+  clusterNamespace: ocp20
+  clusterLabels:
+    env: edge
+  applicationManager:
+    enabled: true
+  policyController:
+    enabled: true
+  searchCollector:
+    enabled: true
+  certPolicyController:
+    enabled: true
