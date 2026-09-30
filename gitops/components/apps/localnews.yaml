@@ -26,7 +26,7 @@ spec:
       project: default
       source:
         repoURL: https://github.com/maxisses/ice-demo.git
-        targetRevision: c4fe2e4f
+        targetRevision: c4fe2e4988f69b7f3fb1684f4b2a04d94e38919b
         path: gitops/helm
         helm:
           releaseName: localnews
