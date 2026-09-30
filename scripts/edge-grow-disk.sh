@@ -12,4 +12,6 @@ oc --context "$ctx" exec -n openshift-machine-config-operator "$pod" -c machine-
   partx -u /dev/$disk
   nsenter -t 1 -m -- xfs_growfs /var | grep 'data blocks' || true
   crictl rmi --prune >/dev/null 2>&1 || true
-  nsenter -t 1 -m -- df -h /var | tail -1"
+  nsenter -t 1 -m -- df -h /var | tail -1
+  # Der Kubelet bemerkt die neue Größe erst nach einem Neustart (sonst bleibt DiskPressure).
+  nsenter -t 1 -m -u -i -n -p -- systemctl restart kubelet"
