@@ -1,0 +1,126 @@
+# PostgreSQL für maas-api (API-Keys, Subscriptions). Zugangsdaten kommen per
+# External Secrets aus AWS Secrets Manager (portfolio-demo/maas/db, erzeugt von terraform/platform).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: postgres-creds
+  namespace: redhat-ods-applications
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: postgres-creds
+  data:
+    - secretKey: POSTGRES_USER
+      remoteRef: { key: portfolio-demo/maas/db, property: POSTGRES_USER }
+    - secretKey: POSTGRES_PASSWORD
+      remoteRef: { key: portfolio-demo/maas/db, property: POSTGRES_PASSWORD }
+    - secretKey: POSTGRES_DB
+      remoteRef: { key: portfolio-demo/maas/db, property: POSTGRES_DB }
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: maas-db-config
+  namespace: redhat-ods-applications
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: maas-db-config
+  data:
+    - secretKey: DB_CONNECTION_URL
+      remoteRef: { key: portfolio-demo/maas/db, property: DB_URL_LOCAL }
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: maas-db-config
+  namespace: redhat-ai-gateway-infra
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: maas-db-config
+  data:
+    - secretKey: DB_CONNECTION_URL
+      remoteRef: { key: portfolio-demo/maas/db, property: DB_URL_REMOTE }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: redhat-ods-applications
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: redhat-ods-applications
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: redhat-ods-applications
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: registry.redhat.io/rhel9/postgresql-16@sha256:3943bfa5de044d8f033df148c0409ed826171b779f3cf3ddf537a1914960ab57
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRESQL_USER
+              valueFrom: { secretKeyRef: { name: postgres-creds, key: POSTGRES_USER } }
+            - name: POSTGRESQL_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-creds, key: POSTGRES_PASSWORD } }
+            - name: POSTGRESQL_DATABASE
+              valueFrom: { secretKeyRef: { name: postgres-creds, key: POSTGRES_DB } }
+            - name: PGDATA
+              value: /var/lib/pgsql/data/userdata
+          readinessProbe:
+            exec:
+              command: [/usr/libexec/check-container]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "1", memory: 1Gi }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/pgsql/data
+              subPath: userdata
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-data

@@ -75,7 +75,8 @@ So setzen wir das auf AWS um:
 ## 3. Arbeitsregeln für Agenten in diesem Projekt
 
 - Das Repo `maxisses/portfolio-demo` ist öffentlich. Kein Secret-Wert landet je in Git, auch
-  nicht in Beispielen oder Logs. Keine Kundennamen, nirgends.
+  nicht in Beispielen oder Logs. Keine Kundennamen, nirgends. Die AWS-Account-ID ist laut AWS
+  kein Secret und darf in IAM-ARNs stehen (D38), sonst nicht.
 - Interna stehen in `CLAUDE.local.md` und im Ordner `local/`, beide gitignoriert. Nichts davon
   in öffentliche Dateien, Commits oder Code-Kommentare kopieren. Vor jedem Commit
   `git status` prüfen.
@@ -492,6 +493,8 @@ Alle Entscheidungen sind mit Max abgestimmt (Interview in fünf Runden am 30.09.
 | D35 | Identitäten laut Abschnitt 6.5 | Minimal, zeigt aber RBAC |
 | D36 | Interna in `CLAUDE.local.md` und `local/`, beide gitignoriert | Das Repo ist öffentlich und wird gezeigt |
 | D37 | GPU-Pool erst nach ausdrücklicher Freigabe durch Max | Runde 5 |
+| D38 | AWS-Account-ID in IAM-ARNs im Repo erlaubt (z. B. ClusterSecretStore) | Kein Secret laut AWS; Sandbox ist temporär; die Alternative wäre Templating ohne Mehrwert |
+| D39 | MaaS nach der Referenz `rh-aiservices-bu/rhoai-maas-guide`: Gateway `maas-default-gateway` mit ROSA-Wildcard-Zertifikat, PostgreSQL im Cluster, Passwort aus Secrets Manager über ESO | In 3.5 liegt MaaS unter `aigateway.modelsAsAService` |
 
 ## 10. Offene Punkte (klären wir beim Bau)
 

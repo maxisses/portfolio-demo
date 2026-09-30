@@ -1,0 +1,17 @@
+# Namespaces, deren Routen am MaaS-Gateway hängen dürfen. redhat-ods-applications
+# gehört dem RHOAI-Operator; wir setzen per Server-Side-Apply nur das Label.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redhat-ods-applications
+  labels:
+    maas.opendatahub.io/gateway-access: "true"
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redhat-ai-gateway-infra
+  labels:
+    maas.opendatahub.io/gateway-access: "true"

@@ -1,0 +1,48 @@
+# Nur die RHOAI-Teile, die die Demo braucht: Dashboard, Workbenches, KServe/llm-d,
+# MaaS (in 3.5 unter aigateway) und der MCP Lifecycle Operator.
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  components:
+    dashboard:
+      managementState: Managed
+    workbenches:
+      managementState: Managed
+      workbenchNamespace: rhods-notebooks
+    kserve:
+      managementState: Managed
+      rawDeploymentServiceConfig: Headed
+    aigateway:
+      managementState: Managed
+      modelsAsAService:
+        managementState: Managed
+    mcplifecycleoperator:
+      managementState: Managed
+    aipipelines:
+      managementState: Removed
+    feastoperator:
+      managementState: Removed
+    kueue:
+      managementState: Removed
+    llamastackoperator:
+      managementState: Removed
+    mlflowoperator:
+      managementState: Removed
+    modelregistry:
+      managementState: Removed
+    ogx:
+      managementState: Removed
+    ray:
+      managementState: Removed
+    sparkoperator:
+      managementState: Removed
+    trainer:
+      managementState: Removed
+    trainingoperator:
+      managementState: Removed
+    trustyai:
+      managementState: Removed

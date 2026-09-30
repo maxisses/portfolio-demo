@@ -10,4 +10,48 @@ metadata:
   namespace: kuadrant-system
   annotations:
     argocd.argoproj.io/sync-wave: "5"
-spec: {}
+spec:
+  observability:
+    enable: true
+---
+# Serving-Zertifikat für Authorino (MaaS verlangt TLS zwischen Gateway und Authorino)
+apiVersion: v1
+kind: Service
+metadata:
+  name: authorino-authorino-authorization
+  namespace: kuadrant-system
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: authorino-server-cert
+spec:
+  ports:
+    - name: grpc
+      port: 50051
+      protocol: TCP
+      targetPort: 50051
+    - name: http
+      port: 5001
+      protocol: TCP
+      targetPort: 5001
+  selector:
+    authorino-resource: authorino
+  type: ClusterIP
+---
+apiVersion: operator.authorino.kuadrant.io/v1beta1
+kind: Authorino
+metadata:
+  name: authorino
+  namespace: kuadrant-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  clusterWide: true
+  replicas: 1
+  listener:
+    tls:
+      enabled: true
+      certSecretRef:
+        name: authorino-server-cert
+  oidcServer:
+    tls:
+      enabled: false

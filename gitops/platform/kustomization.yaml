@@ -4,8 +4,10 @@ resources:
   - acm.yaml
   - cert-manager.yaml
   - connectivity-link.yaml
+  - external-secrets.yaml
   - gpu-operator.yaml
   - leader-worker-set.yaml
+  - maas.yaml
   - monitoring.yaml
   - nfd.yaml
   - rhoai.yaml
