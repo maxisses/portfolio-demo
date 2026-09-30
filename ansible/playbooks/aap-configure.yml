@@ -110,6 +110,31 @@
           no_log: true
           body: { name: "{{ item.name }}", organization: "{{ aap_ids.org }}", credential_type: "{{ item.credential_type }}", inputs: "{{ item.inputs }}" }
 
+    - name: Token des AAP-ServiceAccounts vom Hub lesen
+      ansible.builtin.set_fact:
+        hub_token: "{{ lookup('ansible.builtin.pipe', 'oc --kubeconfig ' ~ repo_root ~ '/local/kubeconfig get secret aap-token -n aap-automation -o jsonpath={.data.token}') | b64decode }}"
+        hub_api: "{{ lookup('ansible.builtin.pipe', 'oc --kubeconfig ' ~ repo_root ~ '/local/kubeconfig whoami --show-server') }}"
+      no_log: true
+
+    - name: ID des Credential-Typs für OpenShift/Kubernetes
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/credential_types/?namespace=kubernetes_bearer_token"
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+      register: _k8s_type
+
+    - name: Credential "Hub-API (portfolio-hub)"
+      ansible.builtin.include_tasks: tasks/aap-ensure.yml
+      vars:
+        ensure:
+          key: cred_hub
+          api: controller
+          endpoint: credentials
+          query: "name={{ 'Hub-API (portfolio-hub)' | urlencode }}"
+          no_log: true
+          body: { name: "Hub-API (portfolio-hub)", organization: "{{ aap_ids.org }}", credential_type: "{{ _k8s_type.json.results[0].id }}", inputs: { host: "{{ hub_api }}", bearer_token: "{{ hub_token }}", verify_ssl: true } }
+
     # --- Controller: EE, Inventory, Projekt -------------------------------
     - name: Execution Environment
       ansible.builtin.include_tasks: tasks/aap-ensure.yml
@@ -173,6 +198,12 @@
         body: { id: "{{ aap_ids.cred_tfstate }}" }
         status_code: [204, 400]
       changed_when: false
+
+    # --- Katalog-Templates mit Survey und RBAC ------------------------------
+    - name: Katalog-Templates
+      ansible.builtin.include_tasks: tasks/aap-catalog-template.yml
+      loop: "{{ aap_catalog_templates }}"
+      loop_control: { loop_var: jt, label: "{{ jt.name }}" }
 
     - name: Übersicht
       ansible.builtin.debug:

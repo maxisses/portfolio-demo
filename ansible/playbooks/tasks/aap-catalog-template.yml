@@ -1,0 +1,85 @@
+---
+# Ein Katalog-Template anlegen: Job-Template, Credentials, Survey, Execute-Rechte.
+- name: "Job-Template {{ jt.name }}"
+  ansible.builtin.include_tasks: aap-ensure.yml
+  vars:
+    ensure:
+      key: "jt_{{ jt.name | regex_replace('[^A-Za-z0-9]+', '_') | lower }}"
+      api: controller
+      endpoint: job_templates
+      query: "name={{ jt.name | urlencode }}"
+      body:
+        name: "{{ jt.name }}"
+        description: "{{ jt.description }}"
+        organization: "{{ aap_ids.org }}"
+        project: "{{ aap_ids.project }}"
+        playbook: "{{ jt.playbook }}"
+        inventory: "{{ aap_ids.inv }}"
+        execution_environment: "{{ aap_ids.ee }}"
+        survey_enabled: true
+
+- name: Template-ID merken
+  ansible.builtin.set_fact:
+    _jt_id: "{{ aap_ids['jt_' ~ (jt.name | regex_replace('[^A-Za-z0-9]+', '_') | lower)] }}"
+
+- name: Credentials anhängen
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/job_templates/{{ _jt_id }}/credentials/"
+    method: POST
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body: { id: "{{ aap_ids[item] }}" }
+    status_code: [204, 400]
+  loop: "{{ jt.credentials }}"
+  changed_when: false
+
+- name: Survey setzen
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/job_templates/{{ _jt_id }}/survey_spec/"
+    method: POST
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      name: "{{ jt.name }}"
+      description: "{{ jt.description }}"
+      spec: "{{ jt.survey | map('combine', {'default': ''}, recursive=false) | list | zip(jt.survey) | map('last') | list }}"
+    status_code: [200, 201]
+  changed_when: false
+
+- name: Rollen-Definition "JobTemplate Execute"
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/role_definitions/?name={{ 'JobTemplate Execute' | urlencode }}"
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+  register: _rd
+
+- name: Controller-IDs der berechtigten Nutzer
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/users/?username={{ item }}"
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+  loop: "{{ jt.execute }}"
+  register: _cusers
+
+- name: Execute-Recht vergeben
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/role_user_assignments/"
+    method: POST
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      role_definition: "{{ _rd.json.results[0].id }}"
+      user: "{{ item.json.results[0].id }}"
+      object_id: "{{ _jt_id | string }}"
+    status_code: [200, 201, 400]
+  loop: "{{ _cusers.results }}"
+  loop_control: { label: "{{ item.item }}" }
+  changed_when: false

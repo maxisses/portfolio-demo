@@ -15,5 +15,15 @@ aap_users:
     first_name: Claude
     last_name: (Agent)
 
-# Job-Templates, die Menschen (Portal) und Agent (MCP) ausführen dürfen
-aap_catalog_templates: []
+# Katalog: Job-Templates, die Menschen (Portal) und der Agent (MCP) ausführen dürfen.
+# Aus dem Survey baut das Portal das Formular; der Agent sieht dieselben Felder als Parameter.
+aap_catalog_templates:
+  - name: "Katalog: Namespace"
+    description: Neuer OpenShift-Namespace mit Quota und Team-Rechten, auf dem Hub oder am Edge. Läuft über Git und Argo CD.
+    playbook: ansible/playbooks/catalog-namespace.yml
+    credentials: [cred_deploykey, cred_hub]
+    execute: [max, agent-claude]
+    survey:
+      - { variable: ns_name, question_name: Name des Namespace, question_description: "Kleinbuchstaben, Ziffern, Bindestriche", type: text, required: true, min: 2, max: 42 }
+      - { variable: team, question_name: Team, type: text, required: true, default: demo, min: 2, max: 22 }
+      - { variable: target_cluster, question_name: Zielcluster, type: multiplechoice, choices: [portfolio-hub, ocp19, ocp20], default: portfolio-hub, required: true }

@@ -1,0 +1,41 @@
+---
+# Schreibt Dateien ins GitOps-Repo und pusht per Deploy Key (Credential "Git Deploy Key").
+# Eingaben: commit.files (Liste {path, content}), commit.message
+# Ergebnis: commit_sha
+- name: Arbeitskopie holen
+  ansible.builtin.command:
+    cmd: git clone --depth 20 {{ gitops_repo_ssh }} {{ _wd }}
+  environment: &gitenv
+    GIT_SSH_COMMAND: "ssh -i {{ lookup('env', 'GIT_DEPLOY_KEY_FILE') }} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+  vars:
+    _wd: "{{ gitops_workdir }}"
+  changed_when: false
+
+- name: Dateien schreiben
+  ansible.builtin.copy:
+    dest: "{{ gitops_workdir }}/{{ item.path }}"
+    content: "{{ item.content }}"
+    mode: "0644"
+  loop: "{{ commit.files }}"
+  loop_control: { label: "{{ item.path }}" }
+
+- name: Committen und pushen (bei Konflikt neu aufsetzen)
+  ansible.builtin.shell: |
+    set -e
+    cd {{ gitops_workdir }}
+    git config user.name "Ansible Automation Platform"
+    git config user.email "aap@portfolio-demo.invalid"
+    git add -A
+    git diff --cached --quiet && { echo "unverändert"; git rev-parse HEAD; exit 0; }
+    git commit -q -m "{{ commit.message }}"
+    for i in 1 2 3 4 5; do
+      git push -q origin HEAD:main && break
+      git pull -q --rebase origin main
+    done
+    git rev-parse HEAD
+  environment: *gitenv
+  register: _push
+
+- name: Commit merken
+  ansible.builtin.set_fact:
+    commit_sha: "{{ _push.stdout_lines | last }}"
