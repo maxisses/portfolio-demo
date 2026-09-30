@@ -1,0 +1,58 @@
+---
+# Bereitet die RHEL-VM für den containerized Installer von AAP 2.7 vor und holt ein
+# Let's-Encrypt-Zertifikat per Route53-DNS-Challenge. Die AWS-Rechte kommen aus der
+# Instance-Rolle der VM (terraform/foundation/iam.tf), nicht aus statischen Keys.
+- name: AAP-VM vorbereiten
+  hosts: aap
+  become: true
+  vars:
+    aap_fqdn: "{{ inventory_hostname }}"
+    certbot_venv: /opt/certbot
+    certbot_email: "{{ lookup('env', 'LETSENCRYPT_EMAIL') | default('mdargatz@redhat.com', true) }}"
+    cert_dir: /home/ec2-user/aap-certs
+  tasks:
+    - name: Hostname setzen (der Installer erwartet einen auflösbaren FQDN)
+      ansible.builtin.hostname:
+        name: "{{ aap_fqdn }}"
+
+    - name: Pakete für Installer und certbot
+      ansible.builtin.dnf:
+        name: [podman, python3-pip, ansible-core, tar, rsync, bash-completion, jq]
+        state: present
+
+    - name: Lingering für ec2-user, damit rootless Podman-Dienste den Logout überleben
+      ansible.builtin.command: loginctl enable-linger ec2-user
+      changed_when: false
+
+    - name: certbot mit Route53-Plugin in eigenem venv
+      ansible.builtin.pip:
+        name: [certbot, certbot-dns-route53]
+        virtualenv: "{{ certbot_venv }}"
+        virtualenv_command: python3 -m venv
+
+    - name: Zertifikat holen (DNS-01 über Route53)
+      ansible.builtin.command: >
+        {{ certbot_venv }}/bin/certbot certonly --dns-route53 --non-interactive --agree-tos
+        -m {{ certbot_email }} -d {{ aap_fqdn }}
+      args:
+        creates: "/etc/letsencrypt/live/{{ aap_fqdn }}/fullchain.pem"
+
+    - name: Zertifikatsverzeichnis für den Installer
+      ansible.builtin.file:
+        path: "{{ cert_dir }}"
+        state: directory
+        owner: ec2-user
+        group: ec2-user
+        mode: "0700"
+
+    - name: Zertifikat und Schlüssel für den Installer bereitstellen
+      ansible.builtin.copy:
+        src: "/etc/letsencrypt/live/{{ aap_fqdn }}/{{ item.src }}"
+        dest: "{{ cert_dir }}/{{ item.dest }}"
+        remote_src: true
+        owner: ec2-user
+        group: ec2-user
+        mode: "0600"
+      loop:
+        - { src: fullchain.pem, dest: aap.crt }
+        - { src: privkey.pem, dest: aap.key }
