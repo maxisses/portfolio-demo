@@ -1,5 +1,5 @@
 # Erzeugt von AAP (Katalog-Item "AI-Namespace"). Nicht von Hand ändern.
-# Bestellt von agent-claude über agent, AAP-Job 41, 2026-10-01T07:03Z
+# Bestellt von agent-claude über agent, AAP-Job 44, 2026-10-01T07:14Z
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -9,7 +9,7 @@ metadata:
     portfolio-demo/managed-by: aap
     portfolio-demo/team: ai
     portfolio-demo/ordered-by: agent
-    portfolio-demo/request-id: "41"
+    portfolio-demo/request-id: "44"
   annotations:
     openshift.io/requester: agent-claude
     openshift.io/display-name: "ai-lab (AI, Team ai)"
@@ -28,6 +28,18 @@ spec:
     limits.memory: 32Gi
     requests.nvidia.com/gpu: "1"
     persistentvolumeclaims: "5"
+---
+# Standardwerte für Container ohne eigene Angaben (z. B. vom Webhook ergänzte Sidecars)
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: ai-lab
+spec:
+  limits:
+    - type: Container
+      default: { cpu: 500m, memory: 512Mi }
+      defaultRequest: { cpu: 100m, memory: 128Mi }
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -105,6 +117,9 @@ spec:
             - >-
               [ -d /opt/app-root/src/samples ] ||
               (git clone --depth 1 https://github.com/maxisses/portfolio-demo.git /tmp/repo && cp -r /tmp/repo/ai/samples /opt/app-root/src/samples) || true
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
           volumeMounts:
             - name: workbench
               mountPath: /opt/app-root/src
