@@ -38,7 +38,7 @@
 
     - name: Image merken
       ansible.builtin.set_fact:
-        workbench_image: "{{ (is.resources[0].status.tags | selectattr('tag', 'equalto', '3.5') | first).items[0].dockerImageReference }}"
+        workbench_image: "{{ (is.resources[0].status.tags | selectattr('tag', 'equalto', '3.5') | first)['items'][0].dockerImageReference }}"
 
     - name: MaaS-Key für den Namespace ausstellen (Subscription premium)
       ansible.builtin.uri:
