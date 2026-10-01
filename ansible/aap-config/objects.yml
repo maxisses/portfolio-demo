@@ -35,6 +35,14 @@ aap_catalog_templates:
     survey:
       - { variable: model, question_name: Modell, type: multiplechoice, choices: [granite, claude-haiku-4-5], default: granite, required: true }
       - { variable: team, question_name: Team, type: text, required: true, default: demo, min: 2, max: 22 }
+  - name: "Katalog: AI-Namespace"
+    description: Data-Science-Projekt auf OpenShift AI mit Workbench, Beispiel-Notebooks und vorverdrahtetem Zugang zu Models-as-a-Service.
+    playbook: ansible/playbooks/catalog-ai-namespace.yml
+    credentials: [cred_deploykey, cred_hub]
+    execute: [max, agent-claude]
+    survey:
+      - { variable: ns_name, question_name: Name des AI-Namespace, question_description: "Kleinbuchstaben, Ziffern, Bindestriche", type: text, required: true, min: 2, max: 42 }
+      - { variable: team, question_name: Team, type: text, required: true, default: ai, min: 2, max: 22 }
 
 # Workflows mit Freigabe: Der Besteller sieht nur den Workflow; das ausführende Template
 # ist intern (nicht im Katalog), freigeben kann der Admin.

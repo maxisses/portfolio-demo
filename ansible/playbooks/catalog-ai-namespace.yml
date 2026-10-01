@@ -1,0 +1,102 @@
+---
+# Katalog-Item "AI-Namespace": Data-Science-Projekt auf dem Hub mit Workbench, Beispiel-
+# Notebooks und vorverdrahtetem MaaS-Zugang. MaaS-Key nach Secrets Manager, alles andere als
+# YAML nach Git; Argo CD rollt aus.
+- name: AI-Namespace bestellen
+  hosts: localhost
+  gather_facts: false
+  vars:
+    ns_name: ""
+    team: demo
+    maas_url: https://maas.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+    rhoai_url: https://rh-ai.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+    samples_repo: https://github.com/maxisses/portfolio-demo.git
+    gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
+    gitops_repo_web: https://github.com/maxisses/portfolio-demo
+    gitops_workdir: "/tmp/gitops-{{ tower_job_id | default('local') }}"
+    requester: "{{ tower_user_name | default('lokal') }}"
+    channel: "{{ 'agent' if requester is match('^agent-') else 'portal' }}"
+    request_id: "{{ tower_job_id | default('lokal') }}"
+    maas_secret: "portfolio-demo/ai-ns/{{ ns_name }}"
+    standard_modell: granite
+  tasks:
+    - name: Eingaben prüfen
+      ansible.builtin.assert:
+        that:
+          - ns_name is match('^[a-z0-9]([-a-z0-9]{0,40}[a-z0-9])?$')
+          - team is match('^[a-z0-9]([-a-z0-9]{0,20}[a-z0-9])?$')
+          - not ns_name.startswith(('openshift', 'kube', 'default', 'redhat'))
+        fail_msg: "Name/Team: Kleinbuchstaben, Ziffern, Bindestriche"
+
+    - name: Workbench-Image aus dem RHOAI-ImageStream (Jupyter Data Science 3.5)
+      kubernetes.core.k8s_info:
+        api_version: image.openshift.io/v1
+        kind: ImageStream
+        namespace: redhat-ods-applications
+        name: s2i-generic-data-science-notebook
+      register: is
+
+    - name: Image merken
+      ansible.builtin.set_fact:
+        workbench_image: "{{ (is.resources[0].status.tags | selectattr('tag', 'equalto', '3.5') | first).items[0].dockerImageReference }}"
+
+    - name: MaaS-Key für den Namespace ausstellen (Subscription premium)
+      ansible.builtin.uri:
+        url: "{{ maas_url }}/maas-api/v1/api-keys"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY') }}"
+        body_format: json
+        body: { name: "ai-ns-{{ ns_name }}-{{ request_id }}", subscription: premium, expiresIn: 30d }
+        status_code: [200, 201]
+      register: key
+      no_log: true
+
+    - name: MaaS-Zugang nach AWS Secrets Manager
+      amazon.aws.secretsmanager_secret:
+        name: "{{ maas_secret }}"
+        region: eu-central-1
+        state: present
+        overwrite: true
+        recovery_window: 0
+        secret_type: string
+        secret: "{{ {'MAAS_BASE_URL': maas_url ~ '/v1', 'MAAS_API_KEY': key.json.key, 'MAAS_MODEL': standard_modell} | to_json }}"
+        tags: { Project: portfolio-demo, ManagedBy: ansible }
+      no_log: true
+
+    - name: Zeitstempel
+      ansible.builtin.set_fact:
+        now_utc: "{{ lookup('ansible.builtin.pipe', 'date -u +%Y-%m-%dT%H:%MZ') }}"
+
+    - name: YAML erzeugen und nach Git committen
+      ansible.builtin.include_tasks: tasks/gitops-commit.yml
+      vars:
+        commit:
+          message: "AI-Namespace {{ ns_name }} (Team {{ team }}; bestellt von {{ requester }} via {{ channel }}, AAP-Job {{ request_id }})"
+          files:
+            - path: "gitops/tenants/portfolio-hub/{{ ns_name }}.yaml"
+              content: "{{ lookup('ansible.builtin.template', '../templates/tenant-ai-namespace.yaml.j2') }}"
+
+    - name: Warten, bis Argo CD ausgerollt hat
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: openshift-gitops
+        name: tenants-portfolio-hub
+      register: app
+      until: >-
+        app.resources | length > 0 and
+        app.resources[0].status.sync.revision | default('') == commit_sha and
+        app.resources[0].status.sync.status | default('') == 'Synced'
+      retries: 40
+      delay: 15
+
+    - name: Ergebnis für Portal und Agent
+      ansible.builtin.set_stats:
+        data:
+          namespace: "{{ ns_name }}"
+          dashboard: "{{ rhoai_url }}/projects/{{ ns_name }}"
+          workbench: "{{ rhoai_url }}/notebook/{{ ns_name }}/workbench"
+          maas: "Key liegt als Secret maas-zugang im Namespace (Subscription premium)"
+          git_commit: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
+          ordered_by: "{{ requester }} via {{ channel }}"

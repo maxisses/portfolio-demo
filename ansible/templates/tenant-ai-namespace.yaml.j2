@@ -1,0 +1,147 @@
+# Erzeugt von AAP (Katalog-Item "AI-Namespace"). Nicht von Hand ändern.
+# Bestellt von {{ requester }} über {{ channel }}, AAP-Job {{ request_id }}, {{ now_utc }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ ns_name }}
+  labels:
+    opendatahub.io/dashboard: "true"
+    portfolio-demo/managed-by: aap
+    portfolio-demo/team: {{ team }}
+    portfolio-demo/ordered-by: {{ channel }}
+    portfolio-demo/request-id: "{{ request_id }}"
+  annotations:
+    openshift.io/requester: {{ requester }}
+    openshift.io/display-name: "{{ ns_name }} (AI, Team {{ team }})"
+    openshift.io/description: "AI-Namespace aus dem Self-Service-Katalog: Workbench, Beispiele, MaaS-Zugang"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: team-quota
+  namespace: {{ ns_name }}
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    requests.nvidia.com/gpu: "1"
+    persistentvolumeclaims: "5"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: team-admin
+  namespace: {{ ns_name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: team-{{ team }}
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: engineer
+---
+# MaaS-Zugang als Umgebungsvariablen für die Workbench; Wert in AWS Secrets Manager.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: maas-zugang
+  namespace: {{ ns_name }}
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: maas-zugang
+  dataFrom:
+    - extract:
+        key: {{ maas_secret }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: workbench
+  namespace: {{ ns_name }}
+  labels:
+    opendatahub.io/dashboard: "true"
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: kubeflow.org/v1
+kind: Notebook
+metadata:
+  name: workbench
+  namespace: {{ ns_name }}
+  labels:
+    app: workbench
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/odh-managed: "true"
+  annotations:
+    notebooks.opendatahub.io/inject-auth: "true"
+    notebooks.opendatahub.io/last-image-selection: "s2i-generic-data-science-notebook:3.5"
+    opendatahub.io/image-display-name: "Jupyter | Data Science | CPU | Python 3.12"
+    opendatahub.io/hardware-profile-name: default-profile
+    opendatahub.io/hardware-profile-namespace: redhat-ods-applications
+    openshift.io/display-name: "Workbench Team {{ team }}"
+spec:
+  template:
+    spec:
+      enableServiceLinks: false
+      initContainers:
+        # Beispiel-Notebooks aus dem Repo holen (nur wenn noch nicht vorhanden)
+        - name: samples
+          image: {{ workbench_image }}
+          command: ["/bin/bash", "-c"]
+          args:
+            - >-
+              [ -d /opt/app-root/src/samples ] ||
+              (git clone --depth 1 {{ samples_repo }} /tmp/repo && cp -r /tmp/repo/ai/samples /opt/app-root/src/samples) || true
+          volumeMounts:
+            - name: workbench
+              mountPath: /opt/app-root/src
+      containers:
+        - name: workbench
+          image: {{ workbench_image }}
+          imagePullPolicy: IfNotPresent
+          workingDir: /opt/app-root/src
+          env:
+            - name: NOTEBOOK_ARGS
+              value: |-
+                --ServerApp.port=8888
+                --ServerApp.token=''
+                --ServerApp.password=''
+                --ServerApp.base_url=/notebook/{{ ns_name }}/workbench
+                --ServerApp.quit_button=False
+            - name: JUPYTER_IMAGE
+              value: {{ workbench_image }}
+          envFrom:
+            - secretRef:
+                name: maas-zugang
+          ports:
+            - name: notebook-port
+              containerPort: 8888
+              protocol: TCP
+          resources:
+            requests: { cpu: "1", memory: 2Gi }
+            limits: { cpu: "2", memory: 4Gi }
+          volumeMounts:
+            - name: workbench
+              mountPath: /opt/app-root/src
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: workbench
+          persistentVolumeClaim:
+            claimName: workbench
+        - name: shm
+          emptyDir:
+            medium: Memory
