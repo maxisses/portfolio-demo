@@ -2,10 +2,11 @@
 
 Stand: 30.09.2026 · Demo-Termin: 02.10.2026 · Build-Start: 30.09.2026, ca. 15:00
 
-Status (30.09.2026, 23:30): Fundament, ROSA, AAP, GitOps-Plattform, RHOAI 3.5 mit MaaS,
-Flotte (ocp19, ocp20), Katalog-Item "Namespace", Demo-Agent über MCP und das Portal sind gebaut
-und getestet. Offen: GPU und Granite, Haiku als externes Modell, Katalog-Items AI-Namespace,
-Model-Endpoint und DBaaS. Details in `docs/build-journal.md`.
+Status (01.10.2026, 11:15): Alles gebaut und als Agent getestet: Fundament, ROSA mit GPU (L4),
+AAP mit MCP, Portal, GitOps-Plattform, Flotte (ocp19, ocp20, Localnews, Policies), RHOAI 3.5 mit
+MaaS (Granite selbst gehostet; Claude Haiku, Sonnet, Opus und GPT-6 Luna extern), alle vier
+Katalog-Items plus Aufräumen, Demo-Agent über MCP. Offen: Demo-Skript, Generalprobe.
+Details in `docs/build-journal.md`.
 
 Dieses Dokument ist Spezifikation und Arbeitsanweisung für Agenten zugleich. Die Umgebung wird
 mit Claude Code gebaut; wer hier arbeitet, Mensch oder Agent, hält das Dokument aktuell.
