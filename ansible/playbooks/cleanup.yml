@@ -29,6 +29,21 @@
         region: "{{ region }}"
       register: states
 
+    - name: Take the PostGIS extension out of each state (the whole database goes away anyway)
+      # App tables depend on PostGIS, so dropping the extension on its own would fail.
+      ansible.builtin.shell: |
+        set -e
+        terraform init -input=false -reconfigure -backend-config="$TF_BACKEND_CONFIG_FILE" -backend-config="key={{ item }}" >/dev/null
+        terraform state rm 'postgresql_extension.postgis[0]' || true
+      args:
+        chdir: "{{ playbook_dir }}/../../terraform/modules/dbaas"
+        executable: /bin/bash
+      environment:
+        PATH: "/usr/local/bin:/usr/bin:/bin"
+      register: unpinned
+      changed_when: "'Removed' in unpinned.stdout"
+      loop: "{{ states.s3_keys | select('match', '^dbaas/.+\\.tfstate$') | list }}"
+
     - name: Destroy databases (terraform destroy per order)
       cloud.terraform.terraform:
         project_path: "{{ playbook_dir }}/../../terraform/modules/dbaas"

@@ -144,9 +144,10 @@ provider "postgresql" {
 }
 
 resource "postgresql_extension" "postgis" {
-  count    = var.postgis ? 1 : 0
-  name     = "postgis"
-  database = local.db
+  count        = var.postgis ? 1 : 0
+  name         = "postgis"
+  database     = local.db
+  drop_cascade = true
 }
 
 resource "aws_secretsmanager_secret" "db" {
