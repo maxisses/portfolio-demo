@@ -25,6 +25,8 @@ KUBECONFIG="$kc" kubectl config use-context portfolio-hub >/dev/null
 chmod 600 "$kc"
 
 cp "$root/agent/CLAUDE.md" "$dest/CLAUDE.md"
+# Optional lokaler Zusatz (gitignoriert), z. B. Standortnamen der Edge-Cluster
+[ -f "$root/local/agent-context.md" ] && cat "$root/local/agent-context.md" >> "$dest/CLAUDE.md"
 # Token direkt eintragen (Datei liegt außerhalb des Repos, nur für den Nutzer lesbar), damit
 # die MCP-Konfiguration auch im Code-Tab der Desktop-App ohne Startskript funktioniert.
 token="$(aws secretsmanager get-secret-value --secret-id portfolio-demo/aap/agent-token --query SecretString --output text)"
