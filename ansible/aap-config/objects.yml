@@ -43,6 +43,16 @@ aap_catalog_templates:
     survey:
       - { variable: ns_name, question_name: Name des AI-Namespace, question_description: "Kleinbuchstaben, Ziffern, Bindestriche", type: text, required: true, min: 2, max: 42 }
       - { variable: team, question_name: Team, type: text, required: true, default: ai, min: 2, max: 22 }
+  - name: "Katalog: App bereitstellen (Localnews)"
+    description: Golden Path für App-Teams. Localnews in einen Namespace auf dem Hub, optional mit KI (Granite über MaaS) und mit einer bestellten Datenbank.
+    playbook: ansible/playbooks/catalog-app-localnews.yml
+    credentials: [cred_deploykey, cred_hub]
+    execute: [max, agent-claude]
+    survey:
+      - { variable: namespace, question_name: Namespace (auf portfolio-hub), type: text, required: true, min: 2, max: 42 }
+      - { variable: ki, question_name: "KI-Ortserkennung über MaaS", type: multiplechoice, choices: ["ja", "nein"], default: "ja", required: true }
+      - { variable: datenbank, question_name: "Datenbank (Name einer bestellten DB, leer = eingebaute)", type: text, required: false, default: "", max: 31 }
+
   - name: "Betrieb: Katalog aufräumen"
     description: Entfernt alle per Katalog bestellten Namespaces, AI-Namespaces und Datenbanken (außer den angegebenen). Nur für den Plattformbetrieb.
     playbook: ansible/playbooks/cleanup.yml

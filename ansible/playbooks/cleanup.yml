@@ -61,9 +61,10 @@
         import boto3
         sm = boto3.client("secretsmanager", region_name="{{ region }}")
         keep = set({{ behalten_liste | to_json }})
-        for page in sm.get_paginator("list_secrets").paginate(Filters=[{"Key": "name", "Values": ["portfolio-demo/ai-ns/"]}]):
+        for page in sm.get_paginator("list_secrets").paginate(Filters=[{"Key": "name", "Values": ["portfolio-demo/ai-ns/", "portfolio-demo/apps/"]}]):
             for s in page["SecretList"]:
-                if s["Name"].rsplit("/", 1)[-1] not in keep:
+                ns = s["Name"].split("/")[2]
+                if ns not in keep:
                     sm.delete_secret(SecretId=s["ARN"], ForceDeleteWithoutRecovery=True)
                     print("gelöscht:", s["Name"])
         PY

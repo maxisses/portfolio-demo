@@ -1,0 +1,129 @@
+---
+# Katalog-Item "App bereitstellen: Localnews" (Golden Path für App-Teams):
+# Localnews in einen vorhandenen Namespace auf dem Hub, optional mit KI (Ortserkennung über
+# Granite in MaaS) und mit einer vorher bestellten Datenbank. AAP stellt den MaaS-Key aus,
+# committet ExternalSecret und Argo-CD-Application nach Git und wartet, bis die App läuft.
+- name: Localnews bereitstellen
+  hosts: localhost
+  gather_facts: false
+  vars:
+    namespace: ""
+    ki: true
+    datenbank: ""
+    cluster_domain: apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+    maas_url: https://maas.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+    maas_model: publishers/ai-engineering/models/granite
+    gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
+    gitops_repo_web: https://github.com/maxisses/portfolio-demo
+    gitops_workdir: "/tmp/gitops-{{ tower_job_id | default('local') }}"
+    requester: "{{ tower_user_name | default('lokal') }}"
+    channel: "{{ 'agent' if requester is match('^agent-') else 'portal' }}"
+    request_id: "{{ tower_job_id | default('lokal') }}"
+    maas_secret: "portfolio-demo/apps/{{ namespace }}/maas"
+  tasks:
+    - name: Eingaben normalisieren (Survey liefert Text)
+      ansible.builtin.set_fact:
+        ki_an: "{{ ki | string | lower in ['true', 'ja', 'yes', '1'] }}"
+        db_name: "{{ datenbank | default('', true) | trim }}"
+
+    - name: Eingaben prüfen
+      ansible.builtin.assert:
+        that:
+          - namespace is match('^[a-z0-9]([-a-z0-9]{0,40}[a-z0-9])?$')
+          - db_name == '' or db_name is match('^[a-z][a-z0-9-]{1,30}$')
+        fail_msg: "Namespace angeben; Datenbank leer lassen oder den Namen einer bestellten Datenbank"
+
+    - name: Namespace muss auf dem Hub existieren
+      kubernetes.core.k8s_info:
+        kind: Namespace
+        name: "{{ namespace }}"
+      register: ns
+      failed_when: ns.resources | length == 0
+
+    - name: Bestellte Datenbank muss im Namespace angekommen sein
+      when: db_name | length > 0
+      kubernetes.core.k8s_info:
+        api_version: external-secrets.io/v1
+        kind: ExternalSecret
+        namespace: "{{ namespace }}"
+        name: "db-{{ db_name }}"
+      register: dbsec
+      failed_when: dbsec.resources | length == 0
+
+    - name: MaaS-Key für die App (Subscription standard, Granite)
+      when: ki_an | bool
+      ansible.builtin.uri:
+        url: "{{ maas_url }}/maas-api/v1/api-keys"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY') }}"
+        body_format: json
+        body: { name: "app-localnews-{{ namespace }}-{{ request_id }}", subscription: standard, expiresIn: 30d }
+        status_code: [200, 201]
+      register: key
+      no_log: true
+
+    - name: MaaS-Zugang nach AWS Secrets Manager
+      when: ki_an | bool
+      community.aws.secretsmanager_secret:
+        name: "{{ maas_secret }}"
+        region: eu-central-1
+        state: present
+        overwrite: true
+        recovery_window: 0
+        secret_type: string
+        secret: "{{ {'MAAS_BASE_URL': maas_url ~ '/v1', 'MAAS_API_KEY': key.json.key, 'MAAS_MODEL': maas_model} | to_json }}"
+        tags: { Project: portfolio-demo, ManagedBy: ansible }
+      no_log: true
+
+    - name: Zeitstempel
+      ansible.builtin.set_fact:
+        now_utc: "{{ lookup('ansible.builtin.pipe', 'date -u +%Y-%m-%dT%H:%MZ') }}"
+
+    - name: YAML erzeugen und nach Git committen
+      ansible.builtin.include_tasks: tasks/gitops-commit.yml
+      vars:
+        ki: "{{ ki_an | bool }}"
+        datenbank: "{{ db_name }}"
+        commit:
+          message: "Localnews in {{ namespace }} ({{ 'mit KI' if ki_an | bool else 'ohne KI' }}{{ ', Datenbank ' ~ db_name if db_name else '' }}; bestellt von {{ requester }} via {{ channel }}, AAP-Job {{ request_id }})"
+          files:
+            - path: "gitops/tenants/portfolio-hub/{{ namespace }}-app-localnews.yaml"
+              content: "{{ lookup('ansible.builtin.template', '../templates/tenant-app-localnews.yaml.j2', template_vars={'ki': ki_an | bool, 'datenbank': db_name}) }}"
+
+    - name: Warten, bis Argo CD die Bestellung übernommen hat
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: openshift-gitops
+        name: tenants-portfolio-hub
+      register: tapp
+      until: >-
+        tapp.resources | length > 0 and
+        tapp.resources[0].status.sync.revision | default('') == commit_sha
+      retries: 40
+      delay: 15
+
+    - name: Warten, bis Localnews läuft
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: openshift-gitops
+        name: "localnews-{{ namespace }}"
+      register: app
+      until: >-
+        app.resources | length > 0 and
+        app.resources[0].status.health.status | default('') == 'Healthy' and
+        app.resources[0].status.sync.status | default('') == 'Synced'
+      retries: 60
+      delay: 15
+
+    - name: Ergebnis für Portal und Agent
+      ansible.builtin.set_stats:
+        data:
+          app: "https://news-frontend-{{ namespace }}.{{ cluster_domain }}"
+          namespace: "{{ namespace }}"
+          ki: "{{ 'Ortserkennung über ' ~ maas_model ~ ' (MaaS, Subscription standard)' if ki_an | bool else 'aus' }}"
+          datenbank: "{{ ('db-' ~ db_name ~ ' (Amazon RDS, PostGIS)') if db_name else 'eingebaute PostGIS' }}"
+          git_commit: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
+          ordered_by: "{{ requester }} via {{ channel }}"

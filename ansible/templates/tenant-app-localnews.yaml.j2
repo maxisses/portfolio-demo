@@ -1,0 +1,65 @@
+# Erzeugt von AAP (Katalog-Item "App bereitstellen: Localnews"). Nicht von Hand ändern.
+# Bestellt von {{ requester }} über {{ channel }}, AAP-Job {{ request_id }}, {{ now_utc }}
+{% if ki %}
+# Zugang zu Models-as-a-Service für die App; Wert in AWS Secrets Manager.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: maas-zugang
+  namespace: {{ namespace }}
+  labels:
+    portfolio-demo/managed-by: aap
+    portfolio-demo/request-id: "{{ request_id }}"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: maas-zugang
+  dataFrom:
+    - extract:
+        key: {{ maas_secret }}
+---
+{% endif %}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: localnews-{{ namespace }}
+  namespace: openshift-gitops
+  labels:
+    portfolio-demo/managed-by: aap
+    portfolio-demo/ordered-by: {{ channel }}
+    portfolio-demo/request-id: "{{ request_id }}"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/maxisses/portfolio-demo.git
+    targetRevision: main
+    path: apps/localnews/chart
+    helm:
+      releaseName: localnews
+      valueFiles: [values.yaml]
+      valuesObject:
+        clusterDomain: {{ cluster_domain }}
+        locationExtractor:
+          image: image-registry.openshift-image-registry.svc:5000/localnews-build/location-extractor
+          imageTag: llm
+        llm:
+          enabled: {{ ki | lower }}
+          secretName: maas-zugang
+        externalDatabase:
+          enabled: {{ (datenbank | length > 0) | lower }}
+          secretName: "{{ ('db-' ~ datenbank) if datenbank else '' }}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 1
