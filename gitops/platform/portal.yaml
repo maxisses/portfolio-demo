@@ -21,6 +21,26 @@ spec:
             host: portal.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
             pluginMode: oci
             imageTagInfo: "2.2"
+          upstream:
+            backstage:
+              appConfig:
+                catalog:
+                  providers:
+                    rhaap:
+                      # Unsere Katalog-Templates liegen in der AAP-Organisation "Portfolio Demo"
+                      # (Chart-Standard wäre "Default"); Abgleich alle 5 statt 60 Minuten.
+                      '{{- include "catalog.providers.env" . }}':
+                        orgs: Portfolio Demo
+                        sync:
+                          orgsUsersTeams:
+                            schedule:
+                              frequency: {minutes: 5}
+                              timeout: {seconds: 30}
+                          jobTemplates:
+                            enabled: true
+                            schedule:
+                              frequency: {minutes: 5}
+                              timeout: {seconds: 30}
   destination:
     server: https://kubernetes.default.svc
     namespace: aap-portal
