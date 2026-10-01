@@ -12,6 +12,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    postgresql = {
+      source  = "cyrilgdn/postgresql"
+      version = "~> 1.25"
+    }
   }
   backend "s3" {
     region       = "eu-central-1"
@@ -42,6 +46,12 @@ variable "groesse" {
 variable "namespace" {
   description = "Ziel-Namespace auf dem Hub (nur zur Kennzeichnung)"
   type        = string
+}
+
+variable "postgis" {
+  description = "PostGIS-Erweiterung anlegen (Localnews braucht sie)"
+  type        = bool
+  default     = true
 }
 
 variable "requester" {
@@ -119,6 +129,24 @@ resource "aws_db_instance" "db" {
   skip_final_snapshot    = true
   apply_immediately      = true
   deletion_protection    = false
+}
+
+# Erweiterungen in der Datenbank. Die AAP-VM liegt in derselben VPC und erreicht RDS direkt.
+provider "postgresql" {
+  host            = aws_db_instance.db.address
+  port            = aws_db_instance.db.port
+  database        = local.db
+  username        = "app"
+  password        = random_password.db.result
+  sslmode         = "require"
+  connect_timeout = 30
+  superuser       = false
+}
+
+resource "postgresql_extension" "postgis" {
+  count    = var.postgis ? 1 : 0
+  name     = "postgis"
+  database = local.db
 }
 
 resource "aws_secretsmanager_secret" "db" {
