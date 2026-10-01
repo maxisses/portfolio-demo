@@ -13,7 +13,7 @@ metadata:
     policy.open-cluster-management.io/categories: Operations
     policy.open-cluster-management.io/controls: Marking of managed clusters
 spec:
-  remediationAction: inform
+  remediationAction: enforce
   disabled: false
   policy-templates:
     - objectDefinition:
@@ -23,6 +23,8 @@ spec:
           name: console-banner
         spec:
           severity: low
+          # Resetting the policy (disabled: true) removes the banners it created.
+          pruneObjectBehavior: DeleteIfCreated
           object-templates:
             - complianceType: musthave
               objectDefinition:
