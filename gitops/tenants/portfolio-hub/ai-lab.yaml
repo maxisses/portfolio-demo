@@ -1,0 +1,147 @@
+# Erzeugt von AAP (Katalog-Item "AI-Namespace"). Nicht von Hand ändern.
+# Bestellt von agent-claude über agent, AAP-Job 41, 2026-10-01T07:03Z
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-lab
+  labels:
+    opendatahub.io/dashboard: "true"
+    portfolio-demo/managed-by: aap
+    portfolio-demo/team: ai
+    portfolio-demo/ordered-by: agent
+    portfolio-demo/request-id: "41"
+  annotations:
+    openshift.io/requester: agent-claude
+    openshift.io/display-name: "ai-lab (AI, Team ai)"
+    openshift.io/description: "AI-Namespace aus dem Self-Service-Katalog: Workbench, Beispiele, MaaS-Zugang"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: team-quota
+  namespace: ai-lab
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    requests.nvidia.com/gpu: "1"
+    persistentvolumeclaims: "5"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: team-admin
+  namespace: ai-lab
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: team-ai
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: engineer
+---
+# MaaS-Zugang als Umgebungsvariablen für die Workbench; Wert in AWS Secrets Manager.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: maas-zugang
+  namespace: ai-lab
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: maas-zugang
+  dataFrom:
+    - extract:
+        key: portfolio-demo/ai-ns/ai-lab
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: workbench
+  namespace: ai-lab
+  labels:
+    opendatahub.io/dashboard: "true"
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: kubeflow.org/v1
+kind: Notebook
+metadata:
+  name: workbench
+  namespace: ai-lab
+  labels:
+    app: workbench
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/odh-managed: "true"
+  annotations:
+    notebooks.opendatahub.io/inject-auth: "true"
+    notebooks.opendatahub.io/last-image-selection: "s2i-generic-data-science-notebook:3.5"
+    opendatahub.io/image-display-name: "Jupyter | Data Science | CPU | Python 3.12"
+    opendatahub.io/hardware-profile-name: default-profile
+    opendatahub.io/hardware-profile-namespace: redhat-ods-applications
+    openshift.io/display-name: "Workbench Team ai"
+spec:
+  template:
+    spec:
+      enableServiceLinks: false
+      initContainers:
+        # Beispiel-Notebooks aus dem Repo holen (nur wenn noch nicht vorhanden)
+        - name: samples
+          image: registry.redhat.io/rhoai/odh-workbench-jupyter-datascience-cpu-py312-rhel9@sha256:206018cabeb3389fcfb554cb1850c82e509483a2f98bf963d82031303adaaee5
+          command: ["/bin/bash", "-c"]
+          args:
+            - >-
+              [ -d /opt/app-root/src/samples ] ||
+              (git clone --depth 1 https://github.com/maxisses/portfolio-demo.git /tmp/repo && cp -r /tmp/repo/ai/samples /opt/app-root/src/samples) || true
+          volumeMounts:
+            - name: workbench
+              mountPath: /opt/app-root/src
+      containers:
+        - name: workbench
+          image: registry.redhat.io/rhoai/odh-workbench-jupyter-datascience-cpu-py312-rhel9@sha256:206018cabeb3389fcfb554cb1850c82e509483a2f98bf963d82031303adaaee5
+          imagePullPolicy: IfNotPresent
+          workingDir: /opt/app-root/src
+          env:
+            - name: NOTEBOOK_ARGS
+              value: |-
+                --ServerApp.port=8888
+                --ServerApp.token=''
+                --ServerApp.password=''
+                --ServerApp.base_url=/notebook/ai-lab/workbench
+                --ServerApp.quit_button=False
+            - name: JUPYTER_IMAGE
+              value: registry.redhat.io/rhoai/odh-workbench-jupyter-datascience-cpu-py312-rhel9@sha256:206018cabeb3389fcfb554cb1850c82e509483a2f98bf963d82031303adaaee5
+          envFrom:
+            - secretRef:
+                name: maas-zugang
+          ports:
+            - name: notebook-port
+              containerPort: 8888
+              protocol: TCP
+          resources:
+            requests: { cpu: "1", memory: 2Gi }
+            limits: { cpu: "2", memory: 4Gi }
+          volumeMounts:
+            - name: workbench
+              mountPath: /opt/app-root/src
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: workbench
+          persistentVolumeClaim:
+            claimName: workbench
+        - name: shm
+          emptyDir:
+            medium: Memory
