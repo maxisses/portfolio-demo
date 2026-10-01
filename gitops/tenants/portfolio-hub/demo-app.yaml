@@ -1,0 +1,53 @@
+# Erzeugt von AAP (Katalog-Item "Namespace"). Nicht von Hand ändern.
+# Bestellt von agent-claude über agent, AAP-Job 21, 2026-10-01T06:33Z
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-app
+  labels:
+    portfolio-demo/managed-by: aap
+    portfolio-demo/team: demo
+    portfolio-demo/ordered-by: agent
+    portfolio-demo/request-id: "21"
+  annotations:
+    openshift.io/requester: agent-claude
+    openshift.io/display-name: "demo-app (Team demo)"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: team-quota
+  namespace: demo-app
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "30"
+    persistentvolumeclaims: "5"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: demo-app
+spec:
+  limits:
+    - type: Container
+      default: { cpu: 500m, memory: 512Mi }
+      defaultRequest: { cpu: 100m, memory: 128Mi }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: team-admin
+  namespace: demo-app
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: team-demo
