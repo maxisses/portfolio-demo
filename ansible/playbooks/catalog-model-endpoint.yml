@@ -11,7 +11,7 @@
     gueltig: 7d
     maas_url: https://maas.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
     modelle:
-      granite: { id: granite, subscription: standard, beschreibung: "selbst gehostet auf OpenShift AI (llm-d, GPU)" }
+      granite: { id: "publishers/ai-engineering/models/granite", subscription: standard, beschreibung: "selbst gehostet auf OpenShift AI (llm-d, GPU)" }
       claude-haiku-4-5: { id: claude-haiku-4-5, subscription: premium, beschreibung: "extern über die Anthropic-API (Technology Preview)" }
       claude-sonnet-5-5: { id: claude-sonnet-5-5, subscription: premium, beschreibung: "extern über die Anthropic-API (Technology Preview)" }
       claude-opus-5-5: { id: claude-opus-5-5, subscription: premium, beschreibung: "extern über die Anthropic-API (Technology Preview)" }

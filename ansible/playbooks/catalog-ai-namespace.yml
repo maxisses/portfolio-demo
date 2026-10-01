@@ -18,7 +18,7 @@
     channel: "{{ 'agent' if requester is match('^agent-') else 'portal' }}"
     request_id: "{{ tower_job_id | default('lokal') }}"
     maas_secret: "portfolio-demo/ai-ns/{{ ns_name }}"
-    standard_modell: granite
+    standard_modell: publishers/ai-engineering/models/granite
   tasks:
     - name: Eingaben prüfen
       ansible.builtin.assert:
