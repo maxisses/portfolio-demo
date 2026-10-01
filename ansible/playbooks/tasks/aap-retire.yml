@@ -1,0 +1,19 @@
+---
+# Deletes one AAP object by name if it still exists (retired names).
+- name: "Look up {{ retired.name }}"
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/{{ retired.endpoint }}/?name={{ retired.name | urlencode }}"
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+  register: _old
+
+- name: "Delete {{ retired.name }}"
+  when: _old.json.count > 0
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/{{ retired.endpoint }}/{{ _old.json.results[0].id }}/"
+    method: DELETE
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+    status_code: [202, 204]

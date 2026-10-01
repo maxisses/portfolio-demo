@@ -1,12 +1,14 @@
-# Localnews (Golden Path der Portfolio-Demo)
+# Localnews (golden path of the portfolio demo)
 
-Basis ist die Localnews-App aus [maxisses/ice-demo](https://github.com/maxisses/ice-demo)
-(Commit `c4fe2e4`), ursprünglich aus dem Buch "Kubernetes Native Development". Ergänzt um:
+This is the Localnews app from [maxisses/ice-demo](https://github.com/maxisses/ice-demo)
+(commit `c4fe2e4`), which started out in the book "Kubernetes Native Development". We added
+two things:
 
-- `location-extractor`: Ortserkennung wahlweise über ein Modell hinter Models-as-a-Service
-  (`EXTRACTOR=llm`, Zugang über `MAAS_BASE_URL`, `MAAS_API_KEY`, `MAAS_MODEL`), mit spaCy als
-  Rückfall. Gebaut im Cluster (`gitops/components/localnews-build`).
-- `chart`: Schalter `externalDatabase` (verwaltete PostgreSQL aus dem Katalog statt eingebauter
-  PostGIS) und `llm` (MaaS-Secret an den Location-Extractor).
+- `location-extractor` can find locations through a model behind Models-as-a-Service
+  (`EXTRACTOR=llm`, access through `MAAS_BASE_URL`, `MAAS_API_KEY`, `MAAS_MODEL`) and falls
+  back to spaCy if the model doesn't answer. It's built in the cluster
+  (`gitops/components/localnews-build`).
+- `chart` has the switches `externalDatabase` (a managed PostgreSQL from the catalog instead of
+  the built-in PostGIS) and `llm` (the MaaS secret for the location extractor).
 
-Bereitgestellt wird die App über das Katalog-Item "App bereitstellen: Localnews".
+App teams deploy it through the catalog item "Catalog: Deploy App (Localnews)".

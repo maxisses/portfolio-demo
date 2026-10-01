@@ -1,8 +1,8 @@
 ---
-# Katalog-Item "AI-Namespace": Data-Science-Projekt auf dem Hub mit Workbench, Beispiel-
-# Notebooks und vorverdrahtetem MaaS-Zugang. MaaS-Key nach Secrets Manager, alles andere als
-# YAML nach Git; Argo CD rollt aus.
-- name: AI-Namespace bestellen
+# Catalog item "AI Namespace": data science project on the hub with a workbench, sample
+# notebooks and pre-wired MaaS access. MaaS key to Secrets Manager, everything else as YAML
+# to Git; Argo CD rolls it out.
+- name: Order an AI namespace
   hosts: localhost
   gather_facts: false
   vars:
@@ -14,21 +14,21 @@
     gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
     gitops_repo_web: https://github.com/maxisses/portfolio-demo
     gitops_workdir: "/tmp/gitops-{{ tower_job_id | default('local') }}"
-    requester: "{{ tower_user_name | default('lokal') }}"
+    requester: "{{ tower_user_name | default('local') }}"
     channel: "{{ 'agent' if requester is match('^agent-') else 'portal' }}"
-    request_id: "{{ tower_job_id | default('lokal') }}"
+    request_id: "{{ tower_job_id | default('local') }}"
     maas_secret: "portfolio-demo/ai-ns/{{ ns_name }}"
-    standard_modell: publishers/ai-engineering/models/granite
+    standard_model: publishers/ai-engineering/models/granite
   tasks:
-    - name: Eingaben prüfen
+    - name: Validate input
       ansible.builtin.assert:
         that:
           - ns_name is match('^[a-z0-9]([-a-z0-9]{0,40}[a-z0-9])?$')
           - team is match('^[a-z0-9]([-a-z0-9]{0,20}[a-z0-9])?$')
           - not ns_name.startswith(('openshift', 'kube', 'default', 'redhat'))
-        fail_msg: "Name/Team: Kleinbuchstaben, Ziffern, Bindestriche"
+        fail_msg: "Name/team: lowercase letters, digits, dashes"
 
-    - name: Workbench-Image aus dem RHOAI-ImageStream (Jupyter Data Science 3.5)
+    - name: Workbench image from the RHOAI image stream (Jupyter Data Science 3.5)
       kubernetes.core.k8s_info:
         api_version: image.openshift.io/v1
         kind: ImageStream
@@ -36,11 +36,11 @@
         name: s2i-generic-data-science-notebook
       register: is
 
-    - name: Image merken
+    - name: Remember the image
       ansible.builtin.set_fact:
         workbench_image: "{{ (is.resources[0].status.tags | selectattr('tag', 'equalto', '3.5') | first)['items'][0].dockerImageReference }}"
 
-    - name: MaaS-Key für den Namespace ausstellen (Subscription premium)
+    - name: Issue a MaaS key for the namespace (subscription premium)
       ansible.builtin.uri:
         url: "{{ maas_url }}/maas-api/v1/api-keys"
         method: POST
@@ -52,7 +52,7 @@
       register: key
       no_log: true
 
-    - name: MaaS-Zugang nach AWS Secrets Manager
+    - name: Store MaaS access in AWS Secrets Manager
       community.aws.secretsmanager_secret:
         name: "{{ maas_secret }}"
         region: eu-central-1
@@ -60,24 +60,24 @@
         overwrite: true
         recovery_window: 0
         secret_type: string
-        secret: "{{ {'MAAS_BASE_URL': maas_url ~ '/v1', 'MAAS_API_KEY': key.json.key, 'MAAS_MODEL': standard_modell} | to_json }}"
+        secret: "{{ {'MAAS_BASE_URL': maas_url ~ '/v1', 'MAAS_API_KEY': key.json.key, 'MAAS_MODEL': standard_model} | to_json }}"
         tags: { Project: portfolio-demo, ManagedBy: ansible }
       no_log: true
 
-    - name: Zeitstempel
+    - name: Timestamp
       ansible.builtin.set_fact:
         now_utc: "{{ lookup('ansible.builtin.pipe', 'date -u +%Y-%m-%dT%H:%MZ') }}"
 
-    - name: YAML erzeugen und nach Git committen
+    - name: Generate YAML and commit it to Git
       ansible.builtin.include_tasks: tasks/gitops-commit.yml
       vars:
         commit:
-          message: "AI-Namespace {{ ns_name }} (Team {{ team }}; bestellt von {{ requester }} via {{ channel }}, AAP-Job {{ request_id }})"
+          message: "AI namespace {{ ns_name }} (team {{ team }}; ordered by {{ requester }} via {{ channel }}, AAP job {{ request_id }})"
           files:
             - path: "gitops/tenants/portfolio-hub/{{ ns_name }}.yaml"
               content: "{{ lookup('ansible.builtin.template', '../templates/tenant-ai-namespace.yaml.j2') }}"
 
-    - name: Warten, bis Argo CD ausgerollt hat
+    - name: Wait until Argo CD has rolled it out
       kubernetes.core.k8s_info:
         api_version: argoproj.io/v1alpha1
         kind: Application
@@ -91,12 +91,12 @@
       retries: 40
       delay: 15
 
-    - name: Ergebnis für Portal und Agent
+    - name: Result for portal and agent
       ansible.builtin.set_stats:
         data:
           namespace: "{{ ns_name }}"
           dashboard: "{{ rhoai_url }}/projects/{{ ns_name }}"
           workbench: "{{ rhoai_url }}/notebook/{{ ns_name }}/workbench"
-          maas: "Key liegt als Secret maas-zugang im Namespace (Subscription premium)"
+          maas: "Key is available as secret maas-access in the namespace (subscription premium)"
           git_commit: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
           ordered_by: "{{ requester }} via {{ channel }}"

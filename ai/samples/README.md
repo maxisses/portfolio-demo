@@ -1,5 +1,5 @@
-# Beispiele für AI-Namespaces
+# Samples for AI namespaces
 
-Diese Notebooks landen beim Start jeder Workbench, die über das Katalog-Item "AI-Namespace"
-bestellt wurde, im Ordner `samples/`. Sie nutzen den vorverdrahteten MaaS-Zugang
-(`MAAS_BASE_URL`, `MAAS_API_KEY`, `MAAS_MODEL`).
+Every workbench ordered through the catalog item "AI Namespace" gets these notebooks in its
+`samples/` folder at start. They use the pre-wired MaaS access (`MAAS_BASE_URL`,
+`MAAS_API_KEY`, `MAAS_MODEL`).

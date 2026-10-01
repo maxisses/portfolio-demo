@@ -1,6 +1,6 @@
-# Tarife: standard = nur das eigene Modell, premium = eigenes plus externes Modell.
-# Eigentümer ist jede angemeldete Identität; welcher Tarif gilt, bestimmt der API-Key,
-# den das Katalog-Item "Model-Endpoint" für eine Subscription ausstellt.
+# Tiers: standard = the self-hosted model only, premium = self-hosted plus external models.
+# Owner is every authenticated identity; the tier is set by the API key that the catalog item
+# "Model Endpoint" issues for a subscription.
 apiVersion: maas.opendatahub.io/v1alpha1
 kind: MaaSSubscription
 metadata:
@@ -8,7 +8,7 @@ metadata:
   namespace: models-as-a-service
   annotations:
     openshift.io/display-name: "Standard"
-    openshift.io/description: "Nur das eigene, selbst gehostete Modell"
+    openshift.io/description: "Only the self-hosted model"
 spec:
   owner:
     groups:
@@ -29,7 +29,7 @@ metadata:
   namespace: models-as-a-service
   annotations:
     openshift.io/display-name: "Premium"
-    openshift.io/description: "Eigene und externe Modelle; externe Tokens kosten Geld"
+    openshift.io/description: "Self-hosted and external models; external tokens cost money"
 spec:
   owner:
     groups:
@@ -66,10 +66,10 @@ spec:
 apiVersion: maas.opendatahub.io/v1alpha1
 kind: MaaSAuthPolicy
 metadata:
-  name: externe-modelle
+  name: external-models
   namespace: models-as-a-service
   annotations:
-    openshift.io/display-name: "Externe Modelle"
+    openshift.io/display-name: "External models"
 spec:
   modelRefs:
     - name: claude-haiku-4-5
@@ -88,10 +88,10 @@ spec:
 apiVersion: maas.opendatahub.io/v1alpha1
 kind: MaaSAuthPolicy
 metadata:
-  name: eigene-modelle
+  name: self-hosted-models
   namespace: models-as-a-service
   annotations:
-    openshift.io/display-name: "Eigene Modelle"
+    openshift.io/display-name: "Self-hosted models"
 spec:
   modelRefs:
     - name: granite

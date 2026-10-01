@@ -1,17 +1,17 @@
-# Persona Operator, "neue Compliance-Vorgabe": Alle Cluster müssen in der Konsole als
-# verwaltet gekennzeichnet sein. Ablauf in der Demo, jeweils per Commit:
-#   1. disabled: false   -> ACM prüft, meldet Verstöße, PolicyAutomation startet einen AAP-Job
-#   2. remediationAction: enforce -> ACM setzt die Vorgabe auf Hub und Edge durch
-# Zurücksetzen nach der Demo: disabled: true, remediationAction: inform.
+# New compliance requirement: every cluster must be marked as managed in its console.
+# Each step is one commit:
+#   1. disabled: false              -> ACM checks, reports violations, PolicyAutomation starts an AAP job
+#   2. remediationAction: enforce   -> ACM enforces the requirement on hub and edge
+# Reset after the demo: disabled: true, remediationAction: inform.
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
 metadata:
-  name: konsolen-banner
+  name: console-banner
   namespace: portfolio-policies
   annotations:
     policy.open-cluster-management.io/standards: Portfolio-Demo
-    policy.open-cluster-management.io/categories: Betrieb
-    policy.open-cluster-management.io/controls: Kennzeichnung verwalteter Cluster
+    policy.open-cluster-management.io/categories: Operations
+    policy.open-cluster-management.io/controls: Marking of managed clusters
 spec:
   remediationAction: inform
   disabled: true
@@ -20,7 +20,7 @@ spec:
         apiVersion: policy.open-cluster-management.io/v1
         kind: ConfigurationPolicy
         metadata:
-          name: konsolen-banner
+          name: console-banner
         spec:
           severity: low
           object-templates:
@@ -31,7 +31,7 @@ spec:
                 metadata:
                   name: portfolio-demo
                 spec:
-                  text: "Verwaltet von portfolio-hub · Konfiguration aus Git · Policy durchgesetzt von ACM"
+                  text: "Managed by portfolio-hub · configuration from Git · policy enforced by ACM"
                   location: BannerTop
                   color: "#FFFFFF"
                   backgroundColor: "#EE0000"
@@ -39,13 +39,13 @@ spec:
 apiVersion: policy.open-cluster-management.io/v1
 kind: PlacementBinding
 metadata:
-  name: konsolen-banner
+  name: console-banner
   namespace: portfolio-policies
 placementRef:
   apiGroup: cluster.open-cluster-management.io
   kind: Placement
-  name: alle
+  name: all
 subjects:
   - apiGroup: policy.open-cluster-management.io
     kind: Policy
-    name: konsolen-banner
+    name: console-banner

@@ -1,3 +1,3 @@
-# Tenants auf ocp19
+# Tenants on ocp19
 
-Diese Dateien erzeugt AAP (Katalog-Item "Namespace"). Nicht von Hand ändern.
+AAP generates these files (self-service catalog). Do not edit by hand.

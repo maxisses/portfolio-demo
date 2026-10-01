@@ -1,53 +1,53 @@
 ---
-# Prüft einen Edge-Cluster über den Hub (ohne VPN): ManagedCluster verfügbar, OpenShift-Version,
-# Localnews synchron und gesund. Als "Edge: Vorab-Check" vor dem Upgrade (pruefung=vorab) und
-# als "Edge: Smoke-Test" danach (pruefung=nachher, mit erwarteter Version). ACM startet beide
-# als Hooks des ClusterCurator; manuell geht es genauso.
-- name: Edge-Cluster prüfen
+# Checks an edge cluster through the hub (no VPN): ManagedCluster available, OpenShift
+# version, Localnews synced and healthy. As "Edge: Pre-Upgrade Check" before the upgrade
+# (check=pre) and as "Edge: Post-Upgrade Smoke Test" afterwards (check=post, with the expected
+# version). ACM starts both as ClusterCurator hooks; running them by hand works the same way.
+- name: Check an edge cluster
   hosts: localhost
   gather_facts: false
   vars:
     cluster: ""
-    pruefung: vorab
-    erwartete_version: ""
+    check: pre
+    expected_version: ""
   tasks:
-    - name: Cluster-Name aus dem Hook (ACM übergibt cluster_deployment)
+    - name: Cluster name from the hook (ACM passes cluster_deployment)
       ansible.builtin.set_fact:
-        ziel: "{{ cluster or (cluster_deployment.name | default('')) }}"
+        target: "{{ cluster or (cluster_deployment.name | default('')) }}"
 
     - name: ManagedCluster
       kubernetes.core.k8s_info:
         api_version: cluster.open-cluster-management.io/v1
         kind: ManagedCluster
-        name: "{{ ziel }}"
+        name: "{{ target }}"
       register: mc
       failed_when: mc.resources | length == 0
 
-    - name: Zustand auswerten
+    - name: Evaluate state
       ansible.builtin.set_fact:
-        verfuegbar: "{{ (mc.resources[0].status.conditions | selectattr('type', 'equalto', 'ManagedClusterConditionAvailable') | first).status == 'True' }}"
-        version: "{{ (mc.resources[0].status.clusterClaims | default([]) | selectattr('name', 'equalto', 'version.openshift.io') | map(attribute='value') | first) | default('unbekannt') }}"
+        available: "{{ (mc.resources[0].status.conditions | selectattr('type', 'equalto', 'ManagedClusterConditionAvailable') | first).status == 'True' }}"
+        current_version: "{{ (mc.resources[0].status.clusterClaims | default([]) | selectattr('name', 'equalto', 'version.openshift.io') | map(attribute='value') | first) | default('unknown') }}"
 
-    - name: Localnews auf dem Cluster (Status aus dem Pull-Modell)
+    - name: Localnews on the cluster (status from the pull model)
       kubernetes.core.k8s_info:
         api_version: argoproj.io/v1alpha1
         kind: Application
         namespace: openshift-gitops
-        name: "localnews-{{ ziel }}"
+        name: "localnews-{{ target }}"
       register: app
 
-    - name: Bewertung
+    - name: Verdict
       ansible.builtin.assert:
         that:
-          - verfuegbar | bool
-          - pruefung != 'nachher' or not erwartete_version or version == erwartete_version
+          - available | bool
+          - check != 'post' or not expected_version or current_version == expected_version
           - app.resources | length == 0 or app.resources[0].status.health.status | default('') in ['Healthy', 'Progressing']
-        fail_msg: "{{ ziel }}: verfügbar={{ verfuegbar }}, Version {{ version }}, Localnews {{ app.resources[0].status.health.status | default('-') if app.resources else 'nicht vorhanden' }}"
-        success_msg: "{{ ziel }} ok: verfügbar, Version {{ version }}, Localnews {{ app.resources[0].status.health.status | default('-') if app.resources else 'nicht vorhanden' }}"
+        fail_msg: "{{ target }}: available={{ available }}, version {{ current_version }}, Localnews {{ app.resources[0].status.health.status | default('-') if app.resources else 'not deployed' }}"
+        success_msg: "{{ target }} ok: available, version {{ current_version }}, Localnews {{ app.resources[0].status.health.status | default('-') if app.resources else 'not deployed' }}"
 
-    - name: Ergebnis
+    - name: Result
       ansible.builtin.set_stats:
         data:
-          cluster: "{{ ziel }}"
-          pruefung: "{{ pruefung }}"
-          version: "{{ version }}"
+          cluster: "{{ target }}"
+          check: "{{ check }}"
+          version: "{{ current_version }}"

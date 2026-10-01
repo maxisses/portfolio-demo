@@ -1,6 +1,6 @@
 apiVersion: v2
 name: localnews
-description: LocalNews mit optionaler verwalteter Datenbank und LLM-Ortserkennung (Golden Path der Portfolio-Demo; Basis maxisses/ice-demo)
+description: LocalNews with an optional managed database and LLM location extraction (golden path of the portfolio demo; based on maxisses/ice-demo)
 type: application
 version: 1.1.0
 appVersion: "1.0.0"

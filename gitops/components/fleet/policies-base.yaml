@@ -1,4 +1,4 @@
-# Namespace für die Policies samt Placements: "edge" = ocp19/ocp20, "alle" = Edge plus Hub.
+# Namespace for the policies and their placements: "edge" = ocp19/ocp20, "all" = edge plus hub.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -36,7 +36,7 @@ spec:
 apiVersion: cluster.open-cluster-management.io/v1beta1
 kind: Placement
 metadata:
-  name: alle
+  name: all
   namespace: portfolio-policies
 spec:
   clusterSets: [edge, default]

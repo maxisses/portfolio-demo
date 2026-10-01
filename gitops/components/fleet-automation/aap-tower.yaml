@@ -1,4 +1,4 @@
-# Zugang von ACM zu AAP (Host und Token des AAP-Nutzers acm-automation); Wert in Secrets Manager.
+# ACM access to AAP (host and token of the AAP user acm-automation); value in Secrets Manager.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -15,7 +15,7 @@ spec:
     - extract:
         key: portfolio-demo/aap/acm-token
 ---
-# Zugang von ACM zu AAP (Host und Token des AAP-Nutzers acm-automation); Wert in Secrets Manager.
+# ACM access to AAP (host and token of the AAP user acm-automation); value in Secrets Manager.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -32,7 +32,7 @@ spec:
     - extract:
         key: portfolio-demo/aap/acm-token
 ---
-# Zugang von ACM zu AAP (Host und Token des AAP-Nutzers acm-automation); Wert in Secrets Manager.
+# ACM access to AAP (host and token of the AAP user acm-automation); value in Secrets Manager.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:

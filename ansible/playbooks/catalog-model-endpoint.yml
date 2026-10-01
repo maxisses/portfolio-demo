@@ -1,33 +1,33 @@
 ---
-# Katalog-Item "Model-Endpoint": stellt über die MaaS-API einen API-Key für ein Modell aus.
-# Identität ist der ServiceAccount von AAP am Hub (Credential "Hub-API"); die Subscription
-# legt Tarif und Token-Limit fest (standard = eigenes Modell, premium = auch externe Modelle).
-- name: Model-Endpoint bestellen
+# Catalog item "Model Endpoint": issues an API key for a model through the MaaS API.
+# The identity is AAP's service account on the hub (credential "Hub-API"); the subscription
+# defines tier and token limit (standard = own model, premium = external models as well).
+- name: Order a model endpoint
   hosts: localhost
   gather_facts: false
   vars:
     model: granite
     team: demo
-    gueltig: 7d
+    valid_for: 7d
     maas_url: https://maas.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
-    modelle:
-      granite: { id: "publishers/ai-engineering/models/granite", subscription: standard, beschreibung: "selbst gehostet auf OpenShift AI (llm-d, GPU)" }
-      claude-haiku-4-5: { id: claude-haiku-4-5, subscription: premium, beschreibung: "extern über die Anthropic-API (Technology Preview)" }
-      claude-sonnet-5-5: { id: claude-sonnet-5-5, subscription: premium, beschreibung: "extern über die Anthropic-API (Technology Preview)" }
-      claude-opus-5-5: { id: claude-opus-5-5, subscription: premium, beschreibung: "extern über die Anthropic-API (Technology Preview)" }
-      gpt-6-luna: { id: gpt-6-luna, subscription: premium, beschreibung: "extern über die OpenAI-API (Technology Preview)" }
-    requester: "{{ tower_user_name | default('lokal') }}"
+    models:
+      granite: { id: "publishers/ai-engineering/models/granite", subscription: standard, description: "self-hosted on OpenShift AI (llm-d, GPU)" }
+      claude-haiku-4-5: { id: claude-haiku-4-5, subscription: premium, description: "external via the Anthropic API (Technology Preview)" }
+      claude-sonnet-5-5: { id: claude-sonnet-5-5, subscription: premium, description: "external via the Anthropic API (Technology Preview)" }
+      claude-opus-5-5: { id: claude-opus-5-5, subscription: premium, description: "external via the Anthropic API (Technology Preview)" }
+      gpt-6-luna: { id: gpt-6-luna, subscription: premium, description: "external via the OpenAI API (Technology Preview)" }
+    requester: "{{ tower_user_name | default('local') }}"
     channel: "{{ 'agent' if requester is match('^agent-') else 'portal' }}"
-    request_id: "{{ tower_job_id | default('lokal') }}"
+    request_id: "{{ tower_job_id | default('local') }}"
   tasks:
-    - name: Eingaben prüfen
+    - name: Validate input
       ansible.builtin.assert:
         that:
-          - model in modelle
+          - model in models
           - team is match('^[a-z0-9]([-a-z0-9]{0,20}[a-z0-9])?$')
-        fail_msg: "Modell: {{ modelle.keys() | join(', ') }}; Team: Kleinbuchstaben, Ziffern, Bindestriche"
+        fail_msg: "Model: {{ models.keys() | join(', ') }}; team: lowercase letters, digits, dashes"
 
-    - name: API-Key bei MaaS ausstellen
+    - name: Issue an API key at MaaS
       ansible.builtin.uri:
         url: "{{ maas_url }}/maas-api/v1/api-keys"
         method: POST
@@ -36,24 +36,24 @@
         body_format: json
         body:
           name: "{{ team }}-{{ model }}-{{ request_id }}"
-          subscription: "{{ modelle[model].subscription }}"
-          expiresIn: "{{ gueltig }}"
+          subscription: "{{ models[model].subscription }}"
+          expiresIn: "{{ valid_for }}"
         status_code: [200, 201]
       register: key
       no_log: true
 
-    - name: Ergebnis für Portal und Agent
+    - name: Result for portal and agent
       ansible.builtin.set_stats:
         data:
           base_url: "{{ maas_url }}/v1"
-          model: "{{ modelle[model].id }}"
+          model: "{{ models[model].id }}"
           api_key: "{{ key.json.key }}"
-          subscription: "{{ modelle[model].subscription }}"
-          gueltig: "{{ gueltig }}"
-          hinweis: "OpenAI-kompatibel: POST {{ maas_url }}/v1/chat/completions mit 'Authorization: Bearer <api_key>'"
+          subscription: "{{ models[model].subscription }}"
+          valid_for: "{{ valid_for }}"
+          usage: "OpenAI compatible: POST {{ maas_url }}/v1/chat/completions with 'Authorization: Bearer <api_key>'"
           ordered_by: "{{ requester }} via {{ channel }}"
       no_log: true
 
-    - name: Zusammenfassung
+    - name: Summary
       ansible.builtin.debug:
-        msg: "Key für {{ modelle[model].id }} ({{ modelle[model].beschreibung }}), Subscription {{ modelle[model].subscription }}, gültig {{ gueltig }}. Endpoint: {{ maas_url }}/v1"
+        msg: "Key for {{ models[model].id }} ({{ models[model].description }}), subscription {{ models[model].subscription }}, valid for {{ valid_for }}. Endpoint: {{ maas_url }}/v1"

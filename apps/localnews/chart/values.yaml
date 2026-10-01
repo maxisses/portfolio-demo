@@ -3,16 +3,16 @@ clusterDomain: apps.ocp4.stormshift.coe.muc.redhat.com
 
 imagePullPolicy: Always
 
-# Golden Path der Portfolio-Demo: verwaltete Datenbank und KI aus dem Katalog.
+# Golden path of the portfolio demo: managed database and AI from the catalog.
 externalDatabase:
   enabled: false
-  # Secret mit host, port, dbname, username, password (Katalog-Item "Datenbank")
+  # Secret with host, port, dbname, username, password (catalog item "Database")
   secretName: ""
 
 llm:
   enabled: false
-  # Secret mit MAAS_BASE_URL, MAAS_API_KEY, MAAS_MODEL (Katalog-Item "App bereitstellen")
-  secretName: maas-zugang
+  # Secret with MAAS_BASE_URL, MAAS_API_KEY, MAAS_MODEL (catalog item "Deploy App")
+  secretName: maas-access
 
 # The component we build ourselves in the Tekton pipeline.
 # The pipeline writes the new tag into this file and pushes it back to git -
@@ -23,8 +23,8 @@ locationExtractor:
   image: quay.io/mdargatz/icedemo
   imageTag: initial
   version: v1
-  # spaCy mit Sprachmodell in zwei Gunicorn-Workern braucht mehr als die 512 Mi,
-  # die eine Namespace-LimitRange typischerweise als Standard setzt.
+  # spaCy with its language model in two Gunicorn workers needs more than the 512 Mi
+  # that a namespace LimitRange typically sets as default.
   resources:
     requests: { cpu: 200m, memory: 512Mi }
     limits: { cpu: "1", memory: 1536Mi }

@@ -1,5 +1,5 @@
-# Externes Modell hinter MaaS (Technology Preview): Claude Haiku 4.5 über die Anthropic-API.
-# Der Key kommt aus AWS Secrets Manager (portfolio-demo/anthropic, terraform/platform).
+# External models behind MaaS (Technology Preview): Claude through the Anthropic API.
+# The key comes from AWS Secrets Manager (portfolio-demo/anthropic, terraform/platform).
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -23,7 +23,7 @@ spec:
     template:
       metadata:
         labels:
-          # über diese Labels findet der Gateway (3.5 bzw. 3.4) den Key
+          # the gateway (3.5 and 3.4) finds the key through these labels
           inference.llm-d.ai/ipp-managed: "true"
           inference.networking.k8s.io/bbr-managed: "true"
   data:
@@ -65,8 +65,8 @@ metadata:
   name: claude-haiku-4-5
   namespace: external-models
   annotations:
-    openshift.io/display-name: "Claude Haiku 4.5 (extern, Anthropic)"
-    openshift.io/description: "Externes Modell über die Anthropic-API, gleiche API wie die eigenen Modelle"
+    openshift.io/display-name: "Claude Haiku 4.5 (external, Anthropic)"
+    openshift.io/description: "External model through the Anthropic API, same API as the own models"
 spec:
   modelRef:
     kind: ExternalModel
@@ -92,7 +92,7 @@ metadata:
   name: claude-sonnet-5-5
   namespace: external-models
   annotations:
-    openshift.io/display-name: "Claude Sonnet 5.5 (extern, Anthropic)"
+    openshift.io/display-name: "Claude Sonnet 5.5 (external, Anthropic)"
 spec:
   modelRef:
     kind: ExternalModel
@@ -118,7 +118,7 @@ metadata:
   name: claude-opus-5-5
   namespace: external-models
   annotations:
-    openshift.io/display-name: "Claude Opus 5.5 (extern, Anthropic)"
+    openshift.io/display-name: "Claude Opus 5.5 (external, Anthropic)"
 spec:
   modelRef:
     kind: ExternalModel

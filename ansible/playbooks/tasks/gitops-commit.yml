@@ -1,25 +1,23 @@
 ---
-# Schreibt Dateien ins GitOps-Repo und pusht per Deploy Key (Credential "Git Deploy Key").
-# Eingaben: commit.files (Liste {path, content}), commit.message
-# Ergebnis: commit_sha
-- name: Deploy Key aus dem Credential als Datei ablegen
+# Writes files into the GitOps repository and pushes them with the deploy key
+# (credential "Git Deploy Key"). Inputs: commit.files (list of {path, content}), commit.message
+# Result: commit_sha
+- name: Store the deploy key from the credential as a file
   ansible.builtin.copy:
     dest: "{{ gitops_workdir }}-key"
-    # OpenSSH verlangt den abschließenden Zeilenumbruch; lookup('file') hatte ihn entfernt.
+    # OpenSSH needs the trailing newline; lookup('file') had removed it.
     content: "{{ (lookup('ansible.builtin.env', 'GIT_DEPLOY_KEY_B64') | b64decode | trim) ~ '\n' }}"
     mode: "0600"
   no_log: true
 
-- name: Arbeitskopie holen
+- name: Clone the GitOps repository
   ansible.builtin.command:
-    cmd: git clone --depth 20 {{ gitops_repo_ssh }} {{ _wd }}
+    cmd: git clone --depth 20 {{ gitops_repo_ssh }} {{ gitops_workdir }}
   environment: &gitenv
     GIT_SSH_COMMAND: "ssh -i {{ gitops_workdir }}-key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-  vars:
-    _wd: "{{ gitops_workdir }}"
   changed_when: false
 
-- name: Dateien schreiben
+- name: Write the generated files
   ansible.builtin.copy:
     dest: "{{ gitops_workdir }}/{{ item.path }}"
     content: "{{ item.content }}"
@@ -27,14 +25,14 @@
   loop: "{{ commit.files }}"
   loop_control: { label: "{{ item.path }}" }
 
-- name: Committen und pushen (bei Konflikt neu aufsetzen)
+- name: Commit and push (rebase on conflicts)
   ansible.builtin.shell: |
     set -e
     cd {{ gitops_workdir }}
     git config user.name "Ansible Automation Platform"
     git config user.email "aap@portfolio-demo.invalid"
     git add -A
-    git diff --cached --quiet && { echo "unverändert"; git rev-parse HEAD; exit 0; }
+    git diff --cached --quiet && { echo "unchanged"; git rev-parse HEAD; exit 0; }
     git commit -q -m "{{ commit.message }}"
     for i in 1 2 3 4 5; do
       git push -q origin HEAD:main && break
@@ -44,11 +42,11 @@
   environment: *gitenv
   register: _push
 
-- name: Commit merken
+- name: Remember the commit
   ansible.builtin.set_fact:
     commit_sha: "{{ _push.stdout_lines | last }}"
 
-- name: Argo CD sofort neu einlesen lassen (nicht auf das Polling warten)
+- name: Ask Argo CD to read the repository now (instead of waiting for polling)
   kubernetes.core.k8s:
     api_version: argoproj.io/v1alpha1
     kind: Application

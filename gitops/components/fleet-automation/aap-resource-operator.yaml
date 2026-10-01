@@ -1,6 +1,6 @@
-# AAP-Operator (cluster-scoped) nur für seine Resource-CRDs, vor allem AnsibleJob.
-# Damit kann ACM Jobs im AAP auf der VM starten: PolicyAutomation bei Policy-Verstößen und
-# Pre-/Post-Hooks bei Cluster-Upgrades (ClusterCurator). Eine zweite AAP wird nicht installiert.
+# AAP operator (cluster scoped) only for its resource CRDs, mainly AnsibleJob. ACM uses it to
+# start jobs in the AAP on the VM: PolicyAutomation on policy violations and pre/post hooks on
+# cluster upgrades (ClusterCurator). No second AAP is installed.
 apiVersion: v1
 kind: Namespace
 metadata:

@@ -1,8 +1,8 @@
 ---
-# Katalog-Item "Namespace": erzeugt YAML, committet es ins GitOps-Repo und wartet,
-# bis Argo CD es auf dem Zielcluster ausgerollt hat (Hub per Push, Edge per Pull).
-# Für Menschen (Portal) und den Agenten (MCP) derselbe Weg.
-- name: Namespace bestellen
+# Catalog item "Namespace": generates YAML, commits it to the GitOps repository and waits
+# until Argo CD has rolled it out on the target cluster (hub: push, edge: pull).
+# Same path for humans (portal) and the agent (MCP).
+- name: Order a namespace
   hosts: localhost
   gather_facts: false
   vars:
@@ -12,38 +12,37 @@
     gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
     gitops_repo_web: https://github.com/maxisses/portfolio-demo
     gitops_workdir: "/tmp/gitops-{{ tower_job_id | default('local') }}"
-    hub_api: "{{ lookup('env', 'K8S_AUTH_HOST') }}"
-    requester: "{{ tower_user_name | default('lokal') }}"
+    requester: "{{ tower_user_name | default('local') }}"
     channel: "{{ 'agent' if requester is match('^agent-') else 'portal' }}"
-    request_id: "{{ tower_job_id | default('lokal') }}"
+    request_id: "{{ tower_job_id | default('local') }}"
     clusters:
       portfolio-hub: "https://console-openshift-console.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com"
       ocp19: "https://console-openshift-console.apps.ocp19.stormshift.coe.muc.redhat.com"
       ocp20: "https://console-openshift-console.apps.ocp20.stormshift.coe.muc.redhat.com"
   tasks:
-    - name: Eingaben prüfen
+    - name: Validate input
       ansible.builtin.assert:
         that:
           - ns_name is match('^[a-z0-9]([-a-z0-9]{0,40}[a-z0-9])?$')
           - team is match('^[a-z0-9]([-a-z0-9]{0,20}[a-z0-9])?$')
           - target_cluster in clusters
           - not ns_name.startswith(('openshift', 'kube', 'default'))
-        fail_msg: "Name/Team: Kleinbuchstaben, Ziffern, Bindestriche. Zielcluster: {{ clusters.keys() | join(', ') }}"
+        fail_msg: "Name/team: lowercase letters, digits, dashes. Target cluster: {{ clusters.keys() | join(', ') }}"
 
-    - name: Zeitstempel
+    - name: Timestamp
       ansible.builtin.set_fact:
         now_utc: "{{ lookup('ansible.builtin.pipe', 'date -u +%Y-%m-%dT%H:%MZ') }}"
 
-    - name: YAML erzeugen und nach Git committen
+    - name: Generate YAML and commit it to Git
       ansible.builtin.include_tasks: tasks/gitops-commit.yml
       vars:
         commit:
-          message: "Namespace {{ ns_name }} auf {{ target_cluster }} (Team {{ team }}; bestellt von {{ requester }} via {{ channel }}, AAP-Job {{ request_id }})"
+          message: "Namespace {{ ns_name }} on {{ target_cluster }} (team {{ team }}; ordered by {{ requester }} via {{ channel }}, AAP job {{ request_id }})"
           files:
             - path: "gitops/tenants/{{ target_cluster }}/{{ ns_name }}.yaml"
               content: "{{ lookup('ansible.builtin.template', '../templates/tenant-namespace.yaml.j2') }}"
 
-    - name: Warten, bis Argo CD den Commit auf {{ target_cluster }} ausgerollt hat
+    - name: Wait until Argo CD has rolled out the commit on {{ target_cluster }}
       kubernetes.core.k8s_info:
         api_version: argoproj.io/v1alpha1
         kind: Application
@@ -57,7 +56,7 @@
       retries: 40
       delay: 15
 
-    - name: Ergebnis für Portal und Agent
+    - name: Result for portal and agent
       ansible.builtin.set_stats:
         data:
           namespace: "{{ ns_name }}"
@@ -67,6 +66,6 @@
           git_commit: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
           ordered_by: "{{ requester }} via {{ channel }}"
 
-    - name: Zusammenfassung
+    - name: Summary
       ansible.builtin.debug:
-        msg: "Namespace {{ ns_name }} steht auf {{ target_cluster }}. Git: {{ gitops_repo_web }}/commit/{{ commit_sha }}"
+        msg: "Namespace {{ ns_name }} is ready on {{ target_cluster }}. Git: {{ gitops_repo_web }}/commit/{{ commit_sha }}"

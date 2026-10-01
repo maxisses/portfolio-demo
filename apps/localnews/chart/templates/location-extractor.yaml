@@ -26,7 +26,7 @@ spec:
             - name: LOC_EXT_VERSION
               value: {{ .Values.locationExtractor.version | quote }}
             {{- if .Values.llm.enabled }}
-            # Ortserkennung über Models-as-a-Service; Zugang aus dem Secret des Katalogs
+            # Location extraction through Models-as-a-Service; access from the catalog's secret
             - name: EXTRACTOR
               value: llm
           envFrom:

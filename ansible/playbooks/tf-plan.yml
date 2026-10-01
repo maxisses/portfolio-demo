@@ -1,7 +1,7 @@
 ---
-# Drift-Check: terraform plan für einen Baustein aus terraform/<tf_dir> gegen den State in S3.
-# Läuft in AAP im EE portfolio-demo-ee; AWS-Rechte kommen aus der Rolle der AAP-VM,
-# die Backend-Konfiguration aus dem Credential "Terraform State (S3)".
+# Drift check: terraform plan for a module from terraform/<tf_dir> against the state in S3.
+# Runs in AAP in the EE portfolio-demo-ee; AWS permissions come from the AAP VM's role,
+# the backend configuration from the credential "Terraform State (S3)".
 - name: Terraform Plan
   hosts: localhost
   gather_facts: false
@@ -23,6 +23,6 @@
       check_mode: true
       register: plan
 
-    - name: Ergebnis
+    - name: Result
       ansible.builtin.debug:
-        msg: "{{ tf_dir }}: {{ 'Abweichung gefunden, Details im Plan oben' if plan.changed else 'keine Abweichung zwischen Code und AWS' }}"
+        msg: "{{ tf_dir }}: {{ 'drift found, details in the plan above' if plan.changed else 'no drift between code and AWS' }}"

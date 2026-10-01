@@ -37,7 +37,7 @@
     - name: Organisation
       ansible.builtin.include_tasks: tasks/aap-ensure.yml
       vars:
-        ensure: { key: org, api: gateway, endpoint: organizations, query: "name={{ aap_org | urlencode }}", body: { name: "{{ aap_org }}", description: "Self-Service-Katalog der Portfolio-Demo" } }
+        ensure: { key: org, api: gateway, endpoint: organizations, query: "name={{ aap_org | urlencode }}", body: { name: "{{ aap_org }}", description: "Self-service catalog of the portfolio demo" } }
 
     - name: Nutzer
       ansible.builtin.include_tasks: tasks/aap-ensure.yml
@@ -63,10 +63,10 @@
           body:
             name: Git Deploy Key
             kind: cloud
-            description: SSH-Schlüssel, mit dem Jobs generiertes YAML nach Git pushen
+            description: SSH key that jobs use to push generated YAML to Git
             inputs:
               fields:
-                - { id: ssh_key_b64, type: string, label: Privater Schlüssel (Base64), secret: true }
+                - { id: ssh_key_b64, type: string, label: Private key (base64), secret: true }
               required: [ssh_key_b64]
             injectors:
               # Base64 in einer Umgebungsvariable statt Datei-Injector: mehrzeilige Schlüssel
@@ -138,7 +138,7 @@
     - name: Execution Environment
       ansible.builtin.include_tasks: tasks/aap-ensure.yml
       vars:
-        ensure: { key: ee, api: controller, endpoint: execution_environments, query: "name=portfolio-demo-ee", body: { name: portfolio-demo-ee, image: "{{ aap_ee_image }}", pull: missing, organization: "{{ aap_ids.org }}", description: "Terraform 1.16.4, cloud.terraform, kubernetes.core, amazon.aws" } }
+        ensure: { key: ee, api: controller, endpoint: execution_environments, query: "name=portfolio-demo-ee", body: { name: portfolio-demo-ee, image: "{{ aap_ee_image }}", pull: missing, organization: "{{ aap_ids.org }}", description: "Terraform 1.16.4, cloud.terraform, community.aws, kubernetes.core, amazon.aws" } }
 
     - name: Inventory
       ansible.builtin.include_tasks: tasks/aap-ensure.yml
@@ -197,10 +197,10 @@
           key: jt_tfplan
           api: controller
           endpoint: job_templates
-          query: "name={{ 'Terraform: Plan (Drift-Check)' | urlencode }}"
+          query: "name={{ 'Terraform: Plan (Drift Check)' | urlencode }}"
           body:
-            name: "Terraform: Plan (Drift-Check)"
-            description: Rechnet terraform plan für einen Baustein gegen den State in S3 und meldet Abweichungen
+            name: "Terraform: Plan (Drift Check)"
+            description: Runs terraform plan for one building block against the state in S3 and reports drift
             organization: "{{ aap_ids.org }}"
             project: "{{ aap_ids.project }}"
             playbook: ansible/playbooks/tf-plan.yml
@@ -231,6 +231,12 @@
       ansible.builtin.include_tasks: tasks/aap-catalog-workflow.yml
       loop: "{{ aap_catalog_workflows | default([]) }}"
       loop_control: { loop_var: wf, label: "{{ wf.name }}" }
+
+    - name: Remove retired objects with the earlier German names
+      ansible.builtin.include_tasks: tasks/aap-retire.yml
+      loop: "{{ (aap_retired.job_templates | default([]) | map('community.general.dict_kv', 'name') | map('combine', {'endpoint': 'job_templates'}) | list)
+               + (aap_retired.workflow_job_templates | default([]) | map('community.general.dict_kv', 'name') | map('combine', {'endpoint': 'workflow_job_templates'}) | list) }}"
+      loop_control: { loop_var: retired, label: "{{ retired.name }}" }
 
     - name: Übersicht
       ansible.builtin.debug:

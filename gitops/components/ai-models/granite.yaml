@@ -1,6 +1,6 @@
-# Das eigene Modell: Red Hat validiertes Granite 4.0 H-Tiny (FP8), als ModelCar gespiegelt nach
-# quay.io/mdargatz/modelcars, serviert mit vLLM über llm-d auf dem GPU-Pool (L40S) und in MaaS
-# veröffentlicht. Vorlage: rh-aiservices-bu/rhoai-maas-guide, granite-tiny-gpu.
+# The own model: Red Hat validated Granite 4.0 H-Tiny (FP8), mirrored as a ModelCar to
+# quay.io/mdargatz/modelcars, served with vLLM through llm-d on the GPU pool (NVIDIA L4) and
+# published in MaaS. Template: rh-aiservices-bu/rhoai-maas-guide, granite-tiny-gpu.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -9,7 +9,7 @@ metadata:
     opendatahub.io/dashboard: "true"
     maas.opendatahub.io/gateway-access: "true"
   annotations:
-    openshift.io/display-name: "AI Engineering (Modelle für MaaS)"
+    openshift.io/display-name: "AI Engineering (models for MaaS)"
 ---
 apiVersion: serving.kserve.io/v1alpha1
 kind: LLMInferenceService
@@ -17,7 +17,7 @@ metadata:
   name: granite
   namespace: ai-engineering
   annotations:
-    openshift.io/display-name: "Granite 4.0 H-Tiny FP8 (eigenes Modell)"
+    openshift.io/display-name: "Granite 4.0 H-Tiny FP8 (self-hosted)"
     opendatahub.io/model-type: generative
     security.opendatahub.io/enable-auth: "true"
   labels:
@@ -84,8 +84,8 @@ metadata:
   name: granite
   namespace: ai-engineering
   annotations:
-    openshift.io/display-name: "Granite 4.0 H-Tiny (eigenes Modell)"
-    openshift.io/description: "Selbst gehostet auf OpenShift AI, vLLM über llm-d, NVIDIA L40S"
+    openshift.io/display-name: "Granite 4.0 H-Tiny (self-hosted)"
+    openshift.io/description: "Self-hosted on OpenShift AI, vLLM through llm-d, NVIDIA L4"
 spec:
   modelRef:
     kind: LLMInferenceService

@@ -1,5 +1,5 @@
-# Externes Modell von OpenAI hinter MaaS (Technology Preview): gleiche API, anderer Anbieter.
-# Der Key kommt aus AWS Secrets Manager (portfolio-demo/openai, terraform/platform).
+# External model from OpenAI behind MaaS (Technology Preview): same API, different provider.
+# The key comes from AWS Secrets Manager (portfolio-demo/openai, terraform/platform).
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -56,7 +56,7 @@ metadata:
   name: gpt-6-luna
   namespace: external-models
   annotations:
-    openshift.io/display-name: "GPT-6 Luna (extern, OpenAI)"
+    openshift.io/display-name: "GPT-6 Luna (external, OpenAI)"
 spec:
   modelRef:
     kind: ExternalModel

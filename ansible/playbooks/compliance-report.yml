@@ -1,51 +1,51 @@
 ---
-# "Compliance: Verstoß dokumentieren": wird von ACM (PolicyAutomation) gestartet, sobald eine
-# Policy auf Clustern nicht erfüllt ist. ACM übergibt policy_name, target_clusters und
-# policy_violations. Der Job schreibt einen Bericht ins Repo (Audit-Trail in Git).
-- name: Compliance-Verstoß dokumentieren
+# "Compliance: Record Violation": started by ACM (PolicyAutomation) as soon as a policy is
+# not satisfied on clusters. ACM passes policy_name, target_clusters and policy_violations.
+# The job writes a report into the repository (audit trail in Git).
+- name: Record a compliance violation
   hosts: localhost
   gather_facts: false
   vars:
-    policy_name: "{{ policy | default('unbekannt') }}"
+    policy_name: "{{ policy | default('unknown') }}"
     target_clusters: []
     policy_violations: {}
     gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
     gitops_repo_web: https://github.com/maxisses/portfolio-demo
     gitops_workdir: "/tmp/gitops-{{ tower_job_id | default('local') }}"
   tasks:
-    - name: Zeitstempel
+    - name: Timestamp
       ansible.builtin.set_fact:
         now_utc: "{{ lookup('ansible.builtin.pipe', 'date -u +%Y-%m-%dT%H:%MZ') }}"
         stamp: "{{ lookup('ansible.builtin.pipe', 'date -u +%Y%m%d-%H%M') }}"
 
-    - name: Bericht nach Git
+    - name: Report to Git
       ansible.builtin.include_tasks: tasks/gitops-commit.yml
       vars:
         commit:
-          message: "Compliance-Bericht: {{ policy_name }} auf {{ target_clusters | join(', ') or 'unbekannt' }} nicht erfüllt (ausgelöst von ACM, AAP-Job {{ tower_job_id | default('lokal') }})"
+          message: "Compliance report: {{ policy_name }} not satisfied on {{ target_clusters | join(', ') or 'unknown' }} (triggered by ACM, AAP job {{ tower_job_id | default('local') }})"
           files:
             - path: "docs/compliance/{{ stamp }}-{{ policy_name | regex_replace('^.*\\.', '') }}.md"
               content: |
-                # Compliance-Bericht: {{ policy_name }}
+                # Compliance report: {{ policy_name }}
 
-                - Zeitpunkt: {{ now_utc }}
-                - Ausgelöst von: ACM PolicyAutomation, ausgeführt von Ansible Automation Platform (Job {{ tower_job_id | default('lokal') }})
-                - Betroffene Cluster: {{ target_clusters | join(', ') or 'unbekannt' }}
+                - Time: {{ now_utc }}
+                - Triggered by: ACM PolicyAutomation, run by Ansible Automation Platform (job {{ tower_job_id | default('local') }})
+                - Affected clusters: {{ target_clusters | join(', ') or 'unknown' }}
 
-                ## Verstöße
+                ## Violations
 
                 {% for cluster, details in (policy_violations | default({})).items() %}
                 - **{{ cluster }}**: {{ details.message | default(details) | string | truncate(400) }}
                 {% else %}
-                - keine Details übergeben
+                - no details passed
                 {% endfor %}
 
-                ## Nächster Schritt
+                ## Next step
 
-                Vorgabe prüfen und auf `enforce` stellen (gitops/components/fleet).
+                Review the requirement and switch the policy to `enforce` (gitops/components/fleet).
 
-    - name: Ergebnis
+    - name: Result
       ansible.builtin.set_stats:
         data:
-          bericht: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
-          cluster: "{{ target_clusters }}"
+          report: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
+          clusters: "{{ target_clusters }}"

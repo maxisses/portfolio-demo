@@ -1,14 +1,14 @@
-# Edge-Cluster bekommen ihr eigenes Argo CD (Pull-Modell): Die Policy installiert
-# OpenShift GitOps und erlaubt dem lokalen Argo CD, Namespaces und Apps anzulegen.
+# Edge clusters get their own Argo CD (pull model): the policy installs OpenShift GitOps and
+# allows the local Argo CD to create namespaces and apps.
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
 metadata:
-  name: openshift-gitops-am-edge
+  name: openshift-gitops-on-edge
   namespace: portfolio-policies
   annotations:
     policy.open-cluster-management.io/standards: Portfolio-Demo
     policy.open-cluster-management.io/categories: GitOps
-    policy.open-cluster-management.io/controls: Pull-Modell
+    policy.open-cluster-management.io/controls: Pull model
 spec:
   remediationAction: enforce
   disabled: false
@@ -36,7 +36,7 @@ spec:
         apiVersion: policy.open-cluster-management.io/v1
         kind: ConfigurationPolicy
         metadata:
-          name: argocd-darf-verwalten
+          name: argocd-may-manage
         spec:
           remediationAction: enforce
           severity: medium
@@ -59,7 +59,7 @@ spec:
 apiVersion: policy.open-cluster-management.io/v1
 kind: PlacementBinding
 metadata:
-  name: openshift-gitops-am-edge
+  name: openshift-gitops-on-edge
   namespace: portfolio-policies
 placementRef:
   apiGroup: cluster.open-cluster-management.io
@@ -68,4 +68,4 @@ placementRef:
 subjects:
   - apiGroup: policy.open-cluster-management.io
     kind: Policy
-    name: openshift-gitops-am-edge
+    name: openshift-gitops-on-edge

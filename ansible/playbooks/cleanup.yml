@@ -1,27 +1,27 @@
 ---
-# Setzt den Katalog zurück (nach Tests und vor der Demo): entfernt die generierten
-# Tenant-Dateien aus Git (Argo CD löscht die Namespaces, auch am Edge), zerstört jede per
-# Katalog bestellte Datenbank über ihren eigenen Terraform-State und löscht die zugehörigen
-# Secrets. Namespaces in "behalten" bleiben stehen.
-- name: Katalog aufräumen
+# Resets the catalog (after tests and before the demo): removes the generated tenant files
+# from Git (Argo CD deletes the namespaces, at the edge too), destroys every database ordered
+# through the catalog via its own Terraform state and deletes the related secrets.
+# Namespaces in "keep" stay.
+- name: Clean up the catalog
   hosts: localhost
   gather_facts: false
   vars:
-    behalten: []
+    keep: []
     gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
     gitops_workdir: "/tmp/gitops-{{ tower_job_id | default('local') }}"
     region: eu-central-1
   tasks:
-    - name: "Eingabe 'behalten' als Liste (Survey liefert Text)"
-      # Survey-Werte sind Extra-Vars und lassen sich nicht überschreiben, daher eigener Name.
+    - name: "Input 'keep' as a list (the survey delivers text)"
+      # Survey values are extra vars and cannot be overridden, hence a separate name.
       ansible.builtin.set_fact:
-        behalten_liste: "{{ ((behalten | default('', true)).split(',') if (behalten | default('', true)) is string else behalten) | map('trim') | select | list }}"
+        keep_list: "{{ ((keep | default('', true)).split(',') if (keep | default('', true)) is string else keep) | map('trim') | select | list }}"
 
-    - name: State-Bucket aus dem Terraform-Backend-Credential
+    - name: State bucket from the Terraform backend credential
       ansible.builtin.set_fact:
         state_bucket: "{{ lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'TF_BACKEND_CONFIG_FILE')) | regex_search('bucket\\s*=\\s*\"([^\"]+)\"', '\\1') | first }}"
 
-    - name: Bestellte Datenbanken (States unter dbaas/)
+    - name: Ordered databases (states under dbaas/)
       amazon.aws.s3_object:
         bucket: "{{ state_bucket }}"
         mode: list
@@ -29,7 +29,7 @@
         region: "{{ region }}"
       register: states
 
-    - name: Datenbanken zerstören (terraform destroy je Bestellung)
+    - name: Destroy databases (terraform destroy per order)
       cloud.terraform.terraform:
         project_path: "{{ playbook_dir }}/../../terraform/modules/dbaas"
         binary_path: /usr/local/bin/terraform
@@ -41,10 +41,10 @@
           key: "{{ item }}"
         variables:
           name: "{{ item | basename | regex_replace('\\.tfstate$', '') }}"
-          namespace: aufraeumen
+          namespace: cleanup
       loop: "{{ states.s3_keys | select('match', '^dbaas/.+\\.tfstate$') | list }}"
 
-    - name: State-Dateien der zerstörten Datenbanken entfernen
+    - name: Remove the state files of destroyed databases
       amazon.aws.s3_object:
         bucket: "{{ state_bucket }}"
         object: "{{ item }}"
@@ -52,25 +52,25 @@
         region: "{{ region }}"
       loop: "{{ states.s3_keys | select('match', '^dbaas/.+\\.tfstate$') | list }}"
 
-    - name: Generierte Tenant-Dateien entfernen und committen
+    - name: Remove generated tenant files and commit
       ansible.builtin.include_tasks: tasks/gitops-remove.yml
 
-    - name: MaaS-Zugänge der AI-Namespaces in Secrets Manager löschen
+    - name: Delete MaaS access of AI namespaces and apps in Secrets Manager
       ansible.builtin.shell: |
         python3 - <<'PY'
         import boto3
         sm = boto3.client("secretsmanager", region_name="{{ region }}")
-        keep = set({{ behalten_liste | to_json }})
+        keep = set({{ keep_list | to_json }})
         for page in sm.get_paginator("list_secrets").paginate(Filters=[{"Key": "name", "Values": ["portfolio-demo/ai-ns/", "portfolio-demo/apps/"]}]):
             for s in page["SecretList"]:
                 ns = s["Name"].split("/")[2]
                 if ns not in keep:
                     sm.delete_secret(SecretId=s["ARN"], ForceDeleteWithoutRecovery=True)
-                    print("gelöscht:", s["Name"])
+                    print("deleted:", s["Name"])
         PY
       register: sec
-      changed_when: "'gelöscht' in sec.stdout"
+      changed_when: "'deleted' in sec.stdout"
 
-    - name: Zusammenfassung
+    - name: Summary
       ansible.builtin.debug:
-        msg: "Aufgeräumt: {{ states.s3_keys | select('match', '^dbaas/') | list | length }} Datenbank(en), Tenant-Dateien entfernt (behalten: {{ behalten_liste | join(', ') or 'nichts' }})"
+        msg: "Cleaned up: {{ states.s3_keys | select('match', '^dbaas/') | list | length }} database(s), tenant files removed (kept: {{ keep_list | join(', ') or 'nothing' }})"

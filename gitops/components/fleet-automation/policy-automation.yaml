@@ -1,21 +1,21 @@
-# Reaktion auf Compliance-Verstöße: Sobald die Policy "konsolen-banner" auf einem Cluster
-# nicht erfüllt ist, startet ACM im AAP den Job "Compliance: Verstoß dokumentieren".
+# Reaction to compliance violations: as soon as the policy "console-banner" is not satisfied
+# on a cluster, ACM starts the job "Compliance: Record Violation" in AAP.
 apiVersion: policy.open-cluster-management.io/v1beta1
 kind: PolicyAutomation
 metadata:
-  name: konsolen-banner-verstoss
+  name: console-banner-violation
   namespace: portfolio-policies
   annotations:
     argocd.argoproj.io/sync-wave: "10"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
-  policyRef: konsolen-banner
+  policyRef: console-banner
   eventHook: noncompliant
   mode: everyEvent
   delayAfterRunSeconds: 600
   automationDef:
-    name: "Compliance: Verstoß dokumentieren"
+    name: "Compliance: Record Violation"
     secret: aap-tower
     type: AnsibleJob
     extra_vars:
-      policy: konsolen-banner
+      policy: console-banner

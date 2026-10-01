@@ -26,7 +26,7 @@ spec:
             - name: backend.nlp.url
               value: http://{{ .Values.locationExtractor.name }}:{{ .Values.locationExtractor.ports.servicePort }}/get_loc
             {{- if .Values.externalDatabase.enabled }}
-            # Verwaltete Datenbank aus dem Katalog (Amazon RDS); Werte aus dem Secret
+            # Managed database from the catalog (Amazon RDS); values from the secret
             {{- range $env, $key := dict "DB_HOST" "host" "DB_PORT" "port" "DB_NAME" "dbname" "DB_USER" "username" "DB_PASSWORD" "password" }}
             - name: {{ $env }}
               valueFrom:

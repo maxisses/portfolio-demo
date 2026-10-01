@@ -1,5 +1,5 @@
-# Location-Extractor mit optionaler LLM-Ortserkennung über Models-as-a-Service.
-# Basis ist das Abhängigkeits-Image aus dem ice-demo-Projekt (spaCy und Sprachmodell).
+# Location extractor with optional LLM location extraction through Models-as-a-Service.
+# Based on the dependency image of the ice-demo project (spaCy and language model).
 FROM quay.io/mdargatz/icedemo:base
 
 WORKDIR /opt/app-root/src

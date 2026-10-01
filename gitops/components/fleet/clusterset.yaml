@@ -1,5 +1,5 @@
-# Flotte: ein ClusterSet "edge" für die beiden Lab-Cluster. Die Cluster registrieren
-# sich selbst beim Hub (Pull), weil der Hub ihre APIs hinter dem VPN nicht erreicht.
+# Fleet: one ClusterSet "edge" for the two lab clusters. The clusters register themselves
+# with the hub (pull), because the hub cannot reach their APIs behind the VPN.
 apiVersion: cluster.open-cluster-management.io/v1beta2
 kind: ManagedClusterSet
 metadata:

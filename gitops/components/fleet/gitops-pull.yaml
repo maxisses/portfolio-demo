@@ -1,6 +1,6 @@
-# Argo CD auf dem Hub kennt die Edge-Cluster über ACM (GitOpsCluster), verteilt aber
-# per Pull: ApplicationSets mit Pull-Annotationen werden als ManifestWork an das lokale
-# Argo CD der Edge-Cluster übergeben. Der Hub braucht keinen Zugriff auf die Edge-APIs.
+# Argo CD on the hub knows the edge clusters through ACM (GitOpsCluster) but distributes by
+# pull: ApplicationSets with pull annotations are handed to the local Argo CD of the edge
+# clusters as ManifestWork. The hub needs no access to the edge APIs.
 apiVersion: cluster.open-cluster-management.io/v1beta1
 kind: Placement
 metadata:

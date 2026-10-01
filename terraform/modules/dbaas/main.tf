@@ -1,6 +1,6 @@
-# DBaaS: eine PostgreSQL-Datenbank (Amazon RDS) pro Bestellung. AAP führt diesen Baustein im
-# Execution Environment aus (cloud.terraform), mit eigenem State-Key pro Datenbank.
-# Zugangsdaten landen in AWS Secrets Manager; in den Namespace kommen sie per ExternalSecret.
+# DBaaS: one PostgreSQL database (Amazon RDS) per order. AAP runs this module in its
+# execution environment (cloud.terraform), with its own state key per database.
+# Credentials go to AWS Secrets Manager; the namespace gets them through an ExternalSecret.
 terraform {
   required_version = ">= 1.10"
   required_providers {
@@ -25,38 +25,38 @@ terraform {
 }
 
 variable "name" {
-  description = "Name der Datenbank (Kleinbuchstaben, Ziffern, Bindestriche)"
+  description = "Database name (lowercase letters, digits, dashes)"
   type        = string
   validation {
     condition     = can(regex("^[a-z][a-z0-9-]{1,30}$", var.name))
-    error_message = "Name: 2-31 Zeichen, Kleinbuchstaben, Ziffern, Bindestriche, Beginn mit Buchstabe."
+    error_message = "name: 2-31 characters, lowercase letters, digits, dashes, starting with a letter."
   }
 }
 
-variable "groesse" {
-  description = "klein oder mittel"
+variable "size" {
+  description = "small or medium"
   type        = string
-  default     = "klein"
+  default     = "small"
   validation {
-    condition     = contains(["klein", "mittel"], var.groesse)
-    error_message = "groesse: klein oder mittel"
+    condition     = contains(["small", "medium"], var.size)
+    error_message = "size: small or medium"
   }
 }
 
 variable "namespace" {
-  description = "Ziel-Namespace auf dem Hub (nur zur Kennzeichnung)"
+  description = "Target namespace on the hub (labelling only)"
   type        = string
 }
 
 variable "postgis" {
-  description = "PostGIS-Erweiterung anlegen (Localnews braucht sie)"
+  description = "Create the PostGIS extension (Localnews needs it)"
   type        = bool
   default     = true
 }
 
 variable "requester" {
   type    = string
-  default = "unbekannt"
+  default = "unknown"
 }
 
 variable "region" {
@@ -91,7 +91,7 @@ data "terraform_remote_state" "foundation" {
 
 locals {
   net   = data.terraform_remote_state.foundation.outputs
-  klass = { klein = "db.t4g.micro", mittel = "db.t4g.small" }
+  class = { small = "db.t4g.micro", medium = "db.t4g.small" }
   db    = replace(var.name, "-", "_")
 }
 
@@ -102,7 +102,7 @@ resource "random_password" "db" {
 
 resource "aws_security_group" "db" {
   name        = "portfolio-demo-dbaas-${var.name}"
-  description = "PostgreSQL nur aus der VPC (ROSA-Worker)"
+  description = "PostgreSQL from the VPC only (ROSA workers)"
   vpc_id      = local.net.vpc_id
   ingress {
     from_port   = 5432
@@ -116,7 +116,7 @@ resource "aws_db_instance" "db" {
   identifier             = "portfolio-demo-${var.name}"
   engine                 = "postgres"
   engine_version         = "16"
-  instance_class         = local.klass[var.groesse]
+  instance_class         = local.class[var.size]
   allocated_storage      = 20
   storage_type           = "gp3"
   storage_encrypted      = true
@@ -131,7 +131,7 @@ resource "aws_db_instance" "db" {
   deletion_protection    = false
 }
 
-# Erweiterungen in der Datenbank. Die AAP-VM liegt in derselben VPC und erreicht RDS direkt.
+# Extensions in the database. The AAP VM is in the same VPC and reaches RDS directly.
 provider "postgresql" {
   host            = aws_db_instance.db.address
   port            = aws_db_instance.db.port

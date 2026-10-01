@@ -77,7 +77,7 @@
         password: "{{ aap_admin_password }}"
         force_basic_auth: true
         body_format: json
-        body: { identifier: freigabe }
+        body: { identifier: approval }
         status_code: [201]
       register: _n_appr
 
@@ -100,7 +100,7 @@
         password: "{{ aap_admin_password }}"
         force_basic_auth: true
         body_format: json
-        body: { identifier: ausfuehrung, unified_job_template: "{{ aap_ids.wfjt_inner }}" }
+        body: { identifier: execution, unified_job_template: "{{ aap_ids.wfjt_inner }}" }
         status_code: [201]
       register: _n_run
 

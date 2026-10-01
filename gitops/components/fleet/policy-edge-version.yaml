@@ -1,15 +1,15 @@
-# Persona Operator, Versionsdrift: Edge-Cluster sollen auf OpenShift 4.22.15 laufen.
-# Nur inform: die Policy meldet, das Upgrade selbst läuft über AAP und ACM (Workflow
-# "Betrieb: Edge-Upgrade"). Compliant, sobald der Cluster 4.22.15 als Zielversion hat.
+# Version drift: edge clusters should run OpenShift 4.22.15. Inform only: the policy reports,
+# the upgrade itself runs through AAP and ACM (workflow "Operations: Edge Upgrade").
+# Compliant as soon as the cluster has 4.22.15 as its desired version.
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
 metadata:
-  name: edge-mindestversion
+  name: edge-minimum-version
   namespace: portfolio-policies
   annotations:
     policy.open-cluster-management.io/standards: Portfolio-Demo
     policy.open-cluster-management.io/categories: Lifecycle
-    policy.open-cluster-management.io/controls: Einheitliche Plattformversion
+    policy.open-cluster-management.io/controls: Uniform platform version
 spec:
   remediationAction: inform
   disabled: false
@@ -18,7 +18,7 @@ spec:
         apiVersion: policy.open-cluster-management.io/v1
         kind: ConfigurationPolicy
         metadata:
-          name: edge-mindestversion
+          name: edge-minimum-version
         spec:
           severity: medium
           object-templates:
@@ -35,7 +35,7 @@ spec:
 apiVersion: policy.open-cluster-management.io/v1
 kind: PlacementBinding
 metadata:
-  name: edge-mindestversion
+  name: edge-minimum-version
   namespace: portfolio-policies
 placementRef:
   apiGroup: cluster.open-cluster-management.io
@@ -44,4 +44,4 @@ placementRef:
 subjects:
   - apiGroup: policy.open-cluster-management.io
     kind: Policy
-    name: edge-mindestversion
+    name: edge-minimum-version
