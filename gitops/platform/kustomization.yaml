@@ -9,6 +9,7 @@ resources:
   - cert-manager.yaml
   - connectivity-link.yaml
   - external-secrets.yaml
+  - fleet-automation.yaml
   - fleet.yaml
   - gpu-operator.yaml
   - leader-worker-set.yaml
