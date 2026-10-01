@@ -2,7 +2,7 @@
 # Resets the catalog (after tests and before the demo): removes the generated tenant files
 # from Git (Argo CD deletes the namespaces, at the edge too), destroys every database ordered
 # through the catalog via its own Terraform state and deletes the related secrets.
-# Namespaces in "keep" stay.
+# Namespaces in "keep" stay, together with their databases.
 - name: Clean up the catalog
   hosts: localhost
   gather_facts: false
@@ -29,6 +29,24 @@
         region: "{{ region }}"
       register: states
 
+    - name: Databases of kept namespaces (generated files <namespace>-db-<name>.yaml)
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}/../../gitops/tenants/portfolio-hub"
+        patterns: "{{ keep_list | map('regex_replace', '$', '-db-*.yaml') | list }}"
+      register: kept_db_files
+      when: keep_list | length > 0
+
+    - name: Only databases outside the kept namespaces go
+      ansible.builtin.set_fact:
+        kept_dbs: >-
+          {{ kept_db_files.files | default([]) | map(attribute='path') | map('basename')
+             | map('regex_replace', '^.*-db-(.*)\.yaml$', '\1') | list }}
+        db_states: >-
+          {{ states.s3_keys | select('match', '^dbaas/.+\.tfstate$')
+             | reject('in', (kept_db_files.files | default([]) | map(attribute='path') | map('basename')
+                             | map('regex_replace', '^.*-db-(.*)\.yaml$', 'dbaas/\1.tfstate') | list))
+             | list }}
+
     - name: Take the PostGIS extension out of each state (the whole database goes away anyway)
       # App tables depend on PostGIS, so dropping the extension on its own would fail.
       ansible.builtin.shell: |
@@ -42,7 +60,7 @@
         PATH: "/usr/local/bin:/usr/bin:/bin"
       register: unpinned
       changed_when: "'Removed' in unpinned.stdout"
-      loop: "{{ states.s3_keys | select('match', '^dbaas/.+\\.tfstate$') | list }}"
+      loop: "{{ db_states }}"
 
     - name: Destroy databases (terraform destroy per order)
       cloud.terraform.terraform:
@@ -57,7 +75,7 @@
         variables:
           name: "{{ item | basename | regex_replace('\\.tfstate$', '') }}"
           namespace: cleanup
-      loop: "{{ states.s3_keys | select('match', '^dbaas/.+\\.tfstate$') | list }}"
+      loop: "{{ db_states }}"
 
     - name: Remove the state files of destroyed databases
       amazon.aws.s3_object:
@@ -65,7 +83,7 @@
         object: "{{ item }}"
         mode: delobj
         region: "{{ region }}"
-      loop: "{{ states.s3_keys | select('match', '^dbaas/.+\\.tfstate$') | list }}"
+      loop: "{{ db_states }}"
 
     - name: Remove generated tenant files and commit
       ansible.builtin.include_tasks: tasks/gitops-remove.yml
@@ -88,4 +106,4 @@
 
     - name: Summary
       ansible.builtin.debug:
-        msg: "Cleaned up: {{ states.s3_keys | select('match', '^dbaas/') | list | length }} database(s), tenant files removed (kept: {{ keep_list | join(', ') or 'nothing' }})"
+        msg: "Cleaned up: {{ db_states | length }} database(s), tenant files removed (kept: {{ keep_list | join(', ') or 'nothing' }}{{ '; databases kept: ' ~ kept_dbs | join(', ') if kept_dbs else '' }})"
