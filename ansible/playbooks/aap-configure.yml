@@ -207,7 +207,7 @@
             inventory: "{{ aap_ids.inv }}"
             execution_environment: "{{ aap_ids.ee }}"
             ask_variables_on_launch: true
-            extra_vars: "{{ {'tf_dir': 'foundation', 'tf_variables': {'admin_cidr': lookup('env', 'TF_VAR_admin_cidr'), 'ssh_public_key': lookup('ansible.builtin.file', '~/.ssh/portfolio-demo.pub')}} | to_nice_yaml }}"
+            extra_vars: "{{ {'tf_dir': 'foundation', 'tf_variables': {'admin_cidr': (lookup('env', 'TF_VAR_admin_cidr') or (lookup('ansible.builtin.url', 'https://checkip.amazonaws.com') | trim) ~ '/32'), 'ssh_public_key': lookup('ansible.builtin.file', '~/.ssh/portfolio-demo.pub')}} | to_nice_yaml }}"
 
     - name: Terraform-State-Credential an das Template hängen
       ansible.builtin.uri:
