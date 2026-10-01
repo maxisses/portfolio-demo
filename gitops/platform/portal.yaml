@@ -44,7 +44,21 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: aap-portal
+  # Der Chart würfelt das Datenbank-Passwort bei jedem Rendern neu. Nach der ersten
+  # Erzeugung darf Argo CD die Secrets daher nicht mehr überschreiben.
+  ignoreDifferences:
+    - kind: Secret
+      name: redhat-rhaap-portal-postgresql
+      jsonPointers: [/data]
+    - kind: Secret
+      name: redhat-rhaap-portal-postgresql-svcbind-postgres
+      jsonPointers: [/data]
+    - kind: Secret
+      name: redhat-rhaap-portal-postgresql-svcbind-custom-user
+      jsonPointers: [/data]
   syncPolicy:
+    syncOptions:
+      - RespectIgnoreDifferences=true
     automated:
       prune: true
       selfHeal: true
