@@ -1,0 +1,30 @@
+# Health check for ACM policies in Argo CD. Argo's built-in check marks a NonCompliant policy
+# as Degraded, which fails the sync and keeps retrying the old revision, so a new commit
+# (e.g. inform -> enforce) waits up to ten minutes. Compliance is ACM's job: for Argo a
+# policy is healthy as soon as ACM reports a status. Server-side apply touches only this field.
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  resourceHealthChecks:
+    - group: policy.open-cluster-management.io
+      kind: Policy
+      check: |
+        hs = {}
+        if obj.spec ~= nil and obj.spec.disabled == true then
+          hs.status = "Healthy"
+          hs.message = "Disabled"
+          return hs
+        end
+        if obj.status ~= nil and obj.status.compliant ~= nil then
+          hs.status = "Healthy"
+          hs.message = obj.status.compliant .. " (details in ACM governance)"
+          return hs
+        end
+        hs.status = "Progressing"
+        hs.message = "Waiting for the compliance status from ACM"
+        return hs

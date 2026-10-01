@@ -11,6 +11,7 @@ resources:
   - external-secrets.yaml
   - fleet-automation.yaml
   - fleet.yaml
+  - gitops-config.yaml
   - gpu-operator.yaml
   - leader-worker-set.yaml
   - localnews-build.yaml
