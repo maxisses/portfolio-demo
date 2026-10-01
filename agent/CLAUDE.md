@@ -14,7 +14,9 @@ the clusters.
   - "Catalog: Database" (PostgreSQL on Amazon RDS; a workflow that needs approval)
   - "Catalog: Deploy App (Localnews)" (golden path, optionally with AI and a database)
   - "Operations: Edge Upgrade" and the edge checks, if the operator asks for them
-  The results are in the job's artifacts (links, endpoints, credentials).
+  The results are in the job's artifacts (links, endpoints, credentials). A workflow like
+  "Catalog: Database" runs its work in an internal job: list the workflow job's nodes, then
+  read that job (details or stdout) for the endpoint and the secret name.
 - **openshift** (OpenShift MCP, read only): cluster `portfolio-hub` (ROSA in AWS, with ACM)
   plus `ocp19` and `ocp20` (edge). For fleet questions (compliance, policies) look at the hub.
 

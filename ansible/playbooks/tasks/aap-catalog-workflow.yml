@@ -148,3 +148,38 @@
   loop: "{{ _wusers.results }}"
   loop_control: { label: "{{ item.item }}" }
   changed_when: false
+
+# Die Besteller sollen das Ergebnis ihrer Bestellung sehen (Endpoint, Secret-Name), das interne
+# Template aber nicht selbst starten können, sonst ließe sich die Freigabe umgehen. Dafür gibt es
+# eine eigene Rolle nur mit Leserecht.
+- name: Rollen-Definition "JobTemplate View" (nur ansehen)
+  ansible.builtin.include_tasks: aap-ensure.yml
+  vars:
+    ensure:
+      key: rd_jt_view
+      api: controller
+      endpoint: role_definitions
+      query: "name={{ 'JobTemplate View' | urlencode }}"
+      create_only: [content_type, permissions]
+      body:
+        name: JobTemplate View
+        description: Read a job template and its jobs, without running it
+        content_type: awx.jobtemplate
+        permissions: [awx.view_jobtemplate]
+
+- name: Leserecht der Besteller auf das interne Template
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/role_user_assignments/"
+    method: POST
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      role_definition: "{{ aap_ids.rd_jt_view }}"
+      user: "{{ item.json.results[0].id }}"
+      object_id: "{{ aap_ids.wfjt_inner | string }}"
+    status_code: [200, 201, 400]
+  loop: "{{ _wusers.results }}"
+  loop_control: { label: "{{ item.item }}" }
+  changed_when: false

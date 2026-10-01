@@ -81,10 +81,13 @@
         data:
           database: "{{ db_name }}"
           endpoint: "{{ tf.outputs.endpoint.value }}"
+          dbname: "{{ db_name | replace('-', '_') }}"
+          username: app
+          password: "in secret db-{{ db_name }} in namespace {{ namespace }}, never in the job output"
           namespace: "{{ namespace }}"
           secret: "db-{{ db_name }} (keys host, port, dbname, username, password, uri)"
           git_commit: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
 
     - name: Summary
       ansible.builtin.debug:
-        msg: "PostgreSQL {{ db_name }} is ready ({{ tf.outputs.endpoint.value }}); secret db-{{ db_name }} in {{ namespace }}."
+        msg: "PostgreSQL {{ db_name }} is ready: endpoint {{ tf.outputs.endpoint.value }}, database {{ db_name | replace('-', '_') }}, user app. The password is in secret db-{{ db_name }} in namespace {{ namespace }}."
