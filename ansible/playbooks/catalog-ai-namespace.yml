@@ -53,7 +53,7 @@
       no_log: true
 
     - name: MaaS-Zugang nach AWS Secrets Manager
-      amazon.aws.secretsmanager_secret:
+      community.aws.secretsmanager_secret:
         name: "{{ maas_secret }}"
         region: eu-central-1
         state: present

@@ -6,7 +6,7 @@
   gather_facts: false
   vars:
     ee_image: quay.io/mdargatz/portfolio-demo-ee
-    ee_tag: "1.0.0"
+    ee_tag: "1.1.0"
     build_dir: /home/ec2-user/ee-build
     venv: /home/ec2-user/.venv-builder
   tasks:
