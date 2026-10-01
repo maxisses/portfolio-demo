@@ -1,6 +1,8 @@
 ---
 # Idempotent: Objekt über die AAP-API suchen, anlegen oder aktualisieren.
 # Eingaben: ensure.api (gateway|controller), ensure.endpoint, ensure.query, ensure.body
+#   optional ensure.create_only: Felder, die nur beim Anlegen gesetzt werden (z. B. inputs
+#   eines Credential-Typs, die AAP nicht mehr ändern lässt, sobald er in Gebrauch ist)
 # Ergebnis: aap_ids[ensure.key] = ID des Objekts
 - name: "Suchen: {{ ensure.endpoint }} {{ ensure.query }}"
   ansible.builtin.uri:
@@ -21,7 +23,9 @@
     password: "{{ aap_admin_password }}"
     force_basic_auth: true
     body_format: json
-    body: "{{ ensure.body }}"
+    body: >-
+      {{ ensure.body if _found.json.count == 0 else
+         (ensure.body | dict2items | rejectattr('key', 'in', ensure.create_only | default([])) | items2dict) }}
     status_code: [200, 201]
   register: _saved
   changed_when: _found.json.count == 0

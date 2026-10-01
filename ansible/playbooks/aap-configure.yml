@@ -60,6 +60,7 @@
           api: controller
           endpoint: credential_types
           query: "name={{ 'Git Deploy Key' | urlencode }}"
+          create_only: [inputs, injectors]
           body:
             name: Git Deploy Key
             kind: cloud

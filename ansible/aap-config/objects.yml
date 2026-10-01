@@ -118,9 +118,11 @@ aap_catalog_workflows:
       - { variable: version, question_name: Target version, type: text, default: "4.22.15", required: true, min: 4, max: 12 }
       - { variable: dry_run, question_name: "Dry run (show only)", type: multiplechoice, choices: ["yes", "no"], default: "yes", required: true }
 
-# Objects with the earlier German names; removed so the catalog shows only the English ones.
+# Objects with the earlier German names and the AAP sample template; removed so AAP and the
+# portal show only the catalog.
 aap_retired:
   job_templates:
+    - "Demo Job Template"
     - "Katalog: Namespace"
     - "Katalog: Model-Endpoint"
     - "Katalog: AI-Namespace"
