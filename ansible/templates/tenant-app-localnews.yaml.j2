@@ -1,6 +1,6 @@
 # Erzeugt von AAP (Katalog-Item "App bereitstellen: Localnews"). Nicht von Hand ändern.
 # Bestellt von {{ requester }} über {{ channel }}, AAP-Job {{ request_id }}, {{ now_utc }}
-{% if ki %}
+{% if ki_an | bool %}
 # Zugang zu Models-as-a-Service für die App; Wert in AWS Secrets Manager.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -46,11 +46,11 @@ spec:
           image: image-registry.openshift-image-registry.svc:5000/localnews-build/location-extractor
           imageTag: llm
         llm:
-          enabled: {{ ki | lower }}
+          enabled: {{ ki_an | bool | lower }}
           secretName: maas-zugang
         externalDatabase:
-          enabled: {{ (datenbank | length > 0) | lower }}
-          secretName: "{{ ('db-' ~ datenbank) if datenbank else '' }}"
+          enabled: {{ (db_name | length > 0) | lower }}
+          secretName: "{{ ('db-' ~ db_name) if db_name else '' }}"
   destination:
     server: https://kubernetes.default.svc
     namespace: {{ namespace }}

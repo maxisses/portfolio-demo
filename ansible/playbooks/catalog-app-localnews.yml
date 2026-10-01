@@ -83,13 +83,11 @@
     - name: YAML erzeugen und nach Git committen
       ansible.builtin.include_tasks: tasks/gitops-commit.yml
       vars:
-        ki: "{{ ki_an | bool }}"
-        datenbank: "{{ db_name }}"
         commit:
           message: "Localnews in {{ namespace }} ({{ 'mit KI' if ki_an | bool else 'ohne KI' }}{{ ', Datenbank ' ~ db_name if db_name else '' }}; bestellt von {{ requester }} via {{ channel }}, AAP-Job {{ request_id }})"
           files:
             - path: "gitops/tenants/portfolio-hub/{{ namespace }}-app-localnews.yaml"
-              content: "{{ lookup('ansible.builtin.template', '../templates/tenant-app-localnews.yaml.j2', template_vars={'ki': ki_an | bool, 'datenbank': db_name}) }}"
+              content: "{{ lookup('ansible.builtin.template', '../templates/tenant-app-localnews.yaml.j2') }}"
 
     - name: Warten, bis Argo CD die Bestellung übernommen hat
       kubernetes.core.k8s_info:
