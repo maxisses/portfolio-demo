@@ -6,7 +6,7 @@ metadata:
   name: openshift-gitops-on-edge
   namespace: portfolio-policies
   annotations:
-    policy.open-cluster-management.io/standards: Portfolio-Demo
+    policy.open-cluster-management.io/standards: Platform baseline
     policy.open-cluster-management.io/categories: GitOps
     policy.open-cluster-management.io/controls: Pull model
 spec:

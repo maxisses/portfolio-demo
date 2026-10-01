@@ -55,16 +55,16 @@ feedScraper:
   replicaCount: 1
   image: quay.io/k8snativedev/feed-scraper
   imageTag: openshift
-  # Feeds are picked for two reasons. They have to be alive - the BBC feed the
-  # book used only answers over https now, and the CNBC one is gone - and their
-  # article links have to fit the backend's varchar(256) column. Times of India
-  # links run to 292 characters and blow the insert up.
+  # Energy market news, so the golden path becomes a market radar: where are wind farms,
+  # storage and grid projects announced? Feeds have to answer a client without a browser
+  # user agent, and their article links have to fit the backend's varchar(256) column.
   feedsUrl: >-
-    https://feeds.bbci.co.uk/news/world/rss.xml,
-    https://www.aljazeera.com/xml/rss/all.xml,
-    https://www.theguardian.com/world/rss,
-    https://rss.dw.com/rdf/rss-en-world,
-    https://www.france24.com/en/rss
+    https://www.offshorewind.biz/feed,
+    https://www.energy-storage.news/feed/,
+    https://www.windpowermonthly.com/rss/news,
+    https://www.power-technology.com/feed/,
+    https://www.energymonitor.ai/feed/,
+    https://www.renewableenergyworld.com/feed/
 
 # No Red Hat image ships the PostGIS extension, so we pin the upstream one.
 postgis:

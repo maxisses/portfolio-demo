@@ -7,9 +7,9 @@ metadata:
   name: edge-minimum-version
   namespace: portfolio-policies
   annotations:
-    policy.open-cluster-management.io/standards: Portfolio-Demo
-    policy.open-cluster-management.io/categories: Lifecycle
-    policy.open-cluster-management.io/controls: Uniform platform version
+    policy.open-cluster-management.io/standards: IEC TR 62443-2-3
+    policy.open-cluster-management.io/categories: Patch management
+    policy.open-cluster-management.io/controls: Supported and uniform platform version
 spec:
   remediationAction: inform
   disabled: false

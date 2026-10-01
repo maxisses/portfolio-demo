@@ -1,4 +1,5 @@
-# New compliance requirement: every cluster must be marked as managed in its console.
+# New compliance requirement from IEC 62443-3-3, SR 1.12 (system use notification): every
+# cluster shows a notice that it is centrally managed and for authorized use only.
 # Each step is one commit:
 #   1. disabled: false              -> ACM checks, reports violations, PolicyAutomation starts an AAP job
 #   2. remediationAction: enforce   -> ACM enforces the requirement on hub and edge
@@ -9,9 +10,9 @@ metadata:
   name: console-banner
   namespace: portfolio-policies
   annotations:
-    policy.open-cluster-management.io/standards: Portfolio-Demo
-    policy.open-cluster-management.io/categories: Operations
-    policy.open-cluster-management.io/controls: Marking of managed clusters
+    policy.open-cluster-management.io/standards: IEC 62443-3-3
+    policy.open-cluster-management.io/categories: FR 1 Identification and authentication control
+    policy.open-cluster-management.io/controls: SR 1.12 System use notification
 spec:
   remediationAction: inform
   disabled: true
@@ -33,7 +34,7 @@ spec:
                 metadata:
                   name: portfolio-demo
                 spec:
-                  text: "Managed by portfolio-hub · configuration from Git · policy enforced by ACM"
+                  text: "Authorized use only · centrally managed and monitored from portfolio-hub · IEC 62443-3-3 SR 1.12"
                   location: BannerTop
                   color: "#FFFFFF"
                   backgroundColor: "#EE0000"
