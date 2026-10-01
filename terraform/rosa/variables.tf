@@ -31,6 +31,7 @@ variable "gpu_pool_enabled" {
 }
 
 variable "gpu_instance_type" {
-  type    = string
-  default = "g6e.xlarge"
+  description = "L4 (g6) statt L40S (g6e): am 01.10.2026 hatte AWS in eu-central-1a keine g6e-Kapazität"
+  type        = string
+  default     = "g6.2xlarge"
 }

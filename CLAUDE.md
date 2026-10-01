@@ -500,6 +500,7 @@ Alle Entscheidungen sind mit Max abgestimmt (Interview in fünf Runden am 30.09.
 | D41 | AAP pusht generiertes YAML per GitHub Deploy Key (Schreibrecht nur auf dieses Repo), als Base64-Credential | Enger als ein PAT; `GIT_SSH_COMMAND` darf ein Credential nicht setzen |
 | D42 | Katalog-Jobs warten auf den Argo-Sync über die Hub-Application `tenants-<cluster>`; im Pull-Modell meldet ACM den Stand der Edge-Cluster dorthin zurück | Einheitlicher Weg für Hub und Edge, AAP braucht keinen Edge-Zugang |
 | D43 | Agent-MCP: AAP `/mcp/job_management` mit Token von `agent-claude`; OpenShift über `kubernetes-mcp-server --read-only --cluster-provider kubeconfig`, Edge über den ACM-Cluster-Proxy mit ManagedServiceAccounts | Kein VPN nötig; Agent sieht per RBAC nur Katalog-Templates |
+| D45 | GPU-Pool g6.2xlarge (NVIDIA L4, 24 GB) statt g6e.xlarge; Granite 4.0 H-Tiny FP8 passt mit Luft | AWS meldete InsufficientInstanceCapacity für g6e.xlarge in eu-central-1a |
 | D44 | Portal per Helm-Chart `redhat-rhaap-portal` 2.2.10 (OCI-Plugins aus registry.redhat.io), Host `portal.apps.rosa.portfolio-hub...` | Offizieller Weg auf OpenShift |
 | D39 | MaaS nach der Referenz `rh-aiservices-bu/rhoai-maas-guide`: Gateway `maas-default-gateway` mit ROSA-Wildcard-Zertifikat, PostgreSQL im Cluster, Passwort aus Secrets Manager über ESO | In 3.5 liegt MaaS unter `aigateway.modelsAsAService` |
 
