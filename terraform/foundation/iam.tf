@@ -68,3 +68,9 @@ resource "aws_iam_instance_profile" "aap" {
   name = "portfolio-demo-aap-vm"
   role = aws_iam_role.aap.name
 }
+
+# RDS braucht im Account einmalig seine Service-Linked-Role. Die AAP-Rolle darf sie bewusst
+# nicht selbst anlegen, also gehört sie ins Fundament.
+resource "aws_iam_service_linked_role" "rds" {
+  aws_service_name = "rds.amazonaws.com"
+}
