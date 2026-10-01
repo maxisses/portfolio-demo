@@ -1,0 +1,36 @@
+---
+# Spiegelt das validierte Granite-ModelCar von registry.redhat.io nach quay.io/mdargatz/modelcars.
+# Läuft auf der AAP-VM (im AWS-Netz deutlich schneller als vom Laptop).
+# Umgebung: REGISTRY_USERNAME/PASSWORD, QUAY_USERNAME/PASSWORD
+- name: Granite-ModelCar spiegeln
+  hosts: aap
+  gather_facts: false
+  vars:
+    source_image: registry.redhat.io/rhai/modelcar-granite-4-0-h-tiny:3.0-1772118943
+    target_image: quay.io/mdargatz/modelcars:granite-4-0-h-tiny-3.0
+  tasks:
+    - name: skopeo
+      ansible.builtin.dnf:
+        name: skopeo
+        state: present
+      become: true
+
+    - name: Kopieren (alle Schichten, Digest bleibt erhalten)
+      ansible.builtin.command:
+        argv:
+          - skopeo
+          - copy
+          - --src-creds
+          - "{{ lookup('env', 'REGISTRY_USERNAME') }}:{{ lookup('env', 'REGISTRY_PASSWORD') }}"
+          - --dest-creds
+          - "{{ lookup('env', 'QUAY_USERNAME') }}:{{ lookup('env', 'QUAY_PASSWORD') }}"
+          - "docker://{{ source_image }}"
+          - "docker://{{ target_image }}"
+      async: 3600
+      poll: 20
+      changed_when: true
+      no_log: true
+
+    - name: Ergebnis
+      ansible.builtin.debug:
+        msg: "{{ target_image }} bereit"
