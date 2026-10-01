@@ -4,6 +4,10 @@ kind: Application
 metadata:
   name: tenants-portfolio-hub
   namespace: openshift-gitops
+  annotations:
+    # Workbenches (Notebook) werden von einem Webhook ergänzt; der Server-Side-Diff
+    # rechnet das mit ein, sonst stünde die App dauerhaft auf OutOfSync.
+    argocd.argoproj.io/compare-options: ServerSideDiff=true,IncludeMutationWebhook=true
 spec:
   project: default
   source:

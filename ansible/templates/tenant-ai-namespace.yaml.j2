@@ -29,6 +29,18 @@ spec:
     requests.nvidia.com/gpu: "1"
     persistentvolumeclaims: "5"
 ---
+# Standardwerte für Container ohne eigene Angaben (z. B. vom Webhook ergänzte Sidecars)
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: {{ ns_name }}
+spec:
+  limits:
+    - type: Container
+      default: { cpu: 500m, memory: 512Mi }
+      defaultRequest: { cpu: 100m, memory: 128Mi }
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -105,6 +117,9 @@ spec:
             - >-
               [ -d /opt/app-root/src/samples ] ||
               (git clone --depth 1 {{ samples_repo }} /tmp/repo && cp -r /tmp/repo/ai/samples /opt/app-root/src/samples) || true
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
           volumeMounts:
             - name: workbench
               mountPath: /opt/app-root/src
