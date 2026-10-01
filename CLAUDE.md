@@ -507,6 +507,8 @@ Alle Entscheidungen sind mit Max abgestimmt (Interview in fünf Runden am 30.09.
 | D46 | Demo in drei Personas statt Szenen: Developer (Localnews mit MaaS und DBaaS über den Katalog), Platform Operator (Edge-Upgrades orchestrieren, neue Compliance-Vorgabe per Policy), ML Engineer (Fine-Tuning im Notebook, ohne Deploy). Je Persona erst der Ablauf, dann das Architekturbild | Abstimmung mit Max am 01.10. |
 | D47 | Alles, was in der Demo sichtbar ist, auf Englisch: Katalog, Surveys, Job-Ausgaben, Commit-Nachrichten von AAP, generiertes YAML, Policies und Banner, MaaS-Namen, Notebooks, Agent-Persona. Bauanleitung, Build-Journal und interne Notizen bleiben deutsch | Wunsch von Max |
 | D48 | Portal synchronisiert die Organisation "Portfolio Demo" alle 5 Minuten; Workflows (Datenbank, Edge-Upgrade) erscheinen dort nicht, nur Job-Templates. Workflows bestellt der Agent über MCP oder ein Mensch in AAP | Verhalten des Portal-Plugins 2.2.10 |
+| D49 | ML-Engineer-Persona: Katalog-Item "AI Namespace" mit Schalter `gpu` (PyTorch-CUDA-Workbench, eine NVIDIA L4, Hardware-Profil `nvidia-l4`); Notebook `ai/samples/02-fine-tuning.ipynb` trainiert Granite 4.0 350M per LoRA, ohne Deploy | Der GPU-Pool hat maximal 2 L4: eine für Granite, eine für die Workbench. Ein zweiter GPU-Namespace bleibt hängen |
+| D50 | Präsentation `presentation/index.html` (HTML, Red-Hat-Stil aus der Vorlage) bleibt lokal und gitignoriert | Enthält interne Lab-Hostnamen der Edge-Cluster |
 | D39 | MaaS nach der Referenz `rh-aiservices-bu/rhoai-maas-guide`: Gateway `maas-default-gateway` mit ROSA-Wildcard-Zertifikat, PostgreSQL im Cluster, Passwort aus Secrets Manager über ESO | In 3.5 liegt MaaS unter `aigateway.modelsAsAService` |
 
 ## 10. Offene Punkte (klären wir beim Bau)

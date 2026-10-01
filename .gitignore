@@ -27,3 +27,7 @@ ansible-navigator.log
 **/artifacts/
 # macOS
 .DS_Store
+
+# Präsentation: enthält interne Lab-Hostnamen, bleibt lokal
+presentation/
+.claude/launch.json
