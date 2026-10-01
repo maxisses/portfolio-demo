@@ -6,8 +6,8 @@
   hosts: aap
   gather_facts: false
   vars:
-    source_image: registry.redhat.io/rhai/modelcar-granite-4-0-h-tiny:3.0-1772118943
-    target_image: quay.io/mdargatz/modelcars:granite-4-0-h-tiny-3.0
+    source_image: registry.redhat.io/rhai/modelcar-granite-4-0-h-tiny-fp8-dynamic:3.0
+    target_image: quay.io/mdargatz/modelcars:granite-4-0-h-tiny-fp8-3.0
   tasks:
     - name: skopeo
       ansible.builtin.dnf:

@@ -1,0 +1,92 @@
+# Das eigene Modell: Red Hat validiertes Granite 4.0 H-Tiny (FP8), als ModelCar gespiegelt nach
+# quay.io/mdargatz/modelcars, serviert mit vLLM über llm-d auf dem GPU-Pool (L40S) und in MaaS
+# veröffentlicht. Vorlage: rh-aiservices-bu/rhoai-maas-guide, granite-tiny-gpu.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-engineering
+  labels:
+    opendatahub.io/dashboard: "true"
+    maas.opendatahub.io/gateway-access: "true"
+  annotations:
+    openshift.io/display-name: "AI Engineering (Modelle für MaaS)"
+---
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: granite
+  namespace: ai-engineering
+  annotations:
+    openshift.io/display-name: "Granite 4.0 H-Tiny FP8 (eigenes Modell)"
+    opendatahub.io/model-type: generative
+    security.opendatahub.io/enable-auth: "true"
+  labels:
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/genai-asset: "true"
+spec:
+  model:
+    name: granite
+    uri: oci://quay.io/mdargatz/modelcars:granite-4-0-h-tiny-fp8-3.0
+  replicas: 1
+  router:
+    route: {}
+    gateway:
+      refs:
+        - name: maas-default-gateway
+          namespace: openshift-ingress
+  template:
+    tolerations:
+      - effect: NoSchedule
+        key: nvidia.com/gpu
+        operator: Exists
+    containers:
+      - name: main
+        image: registry.redhat.io/rhaii/vllm-cuda-rhel9@sha256:5800e12b2a465f15961fcf34b645d79ed4f91ec9161eab22b1205d12682183c8
+        command: [python, -m, vllm.entrypoints.openai.api_server]
+        args:
+          - "--served-model-name={{.Name}}"
+          - --model=/mnt/models
+          - --enable-ssl-refresh
+          - --ssl-certfile=/var/run/kserve/tls/tls.crt
+          - --ssl-keyfile=/var/run/kserve/tls/tls.key
+          - --enable-force-include-usage
+        ports:
+          - containerPort: 8000
+            name: http
+            protocol: TCP
+        livenessProbe:
+          httpGet: { path: /health, port: 8000, scheme: HTTPS }
+          initialDelaySeconds: 300
+          periodSeconds: 30
+          timeoutSeconds: 30
+          failureThreshold: 5
+        readinessProbe:
+          httpGet: { path: /health, port: 8000, scheme: HTTPS }
+          initialDelaySeconds: 120
+          periodSeconds: 15
+          timeoutSeconds: 15
+          failureThreshold: 40
+        resources:
+          requests: { cpu: "2", memory: 8Gi, nvidia.com/gpu: "1" }
+          limits: { cpu: "4", memory: 24Gi, nvidia.com/gpu: "1" }
+        volumeMounts:
+          - mountPath: /dev/shm
+            name: shm
+    volumes:
+      - name: shm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 2Gi
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: granite
+  namespace: ai-engineering
+  annotations:
+    openshift.io/display-name: "Granite 4.0 H-Tiny (eigenes Modell)"
+    openshift.io/description: "Selbst gehostet auf OpenShift AI, vLLM über llm-d, NVIDIA L40S"
+spec:
+  modelRef:
+    kind: LLMInferenceService
+    name: granite
