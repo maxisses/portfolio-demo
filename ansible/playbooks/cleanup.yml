@@ -13,8 +13,9 @@
     region: eu-central-1
   tasks:
     - name: "Eingabe 'behalten' als Liste (Survey liefert Text)"
+      # Survey-Werte sind Extra-Vars und lassen sich nicht überschreiben, daher eigener Name.
       ansible.builtin.set_fact:
-        behalten: "{{ (behalten.split(',') if behalten is string else behalten) | map('trim') | select | list }}"
+        behalten_liste: "{{ ((behalten | default('', true)).split(',') if (behalten | default('', true)) is string else behalten) | map('trim') | select | list }}"
 
     - name: State-Bucket aus dem Terraform-Backend-Credential
       ansible.builtin.set_fact:
@@ -59,7 +60,7 @@
         python3 - <<'PY'
         import boto3
         sm = boto3.client("secretsmanager", region_name="{{ region }}")
-        keep = set({{ behalten | to_json }})
+        keep = set({{ behalten_liste | to_json }})
         for page in sm.get_paginator("list_secrets").paginate(Filters=[{"Key": "name", "Values": ["portfolio-demo/ai-ns/"]}]):
             for s in page["SecretList"]:
                 if s["Name"].rsplit("/", 1)[-1] not in keep:
@@ -71,4 +72,4 @@
 
     - name: Zusammenfassung
       ansible.builtin.debug:
-        msg: "Aufgeräumt: {{ states.s3_keys | select('match', '^dbaas/') | list | length }} Datenbank(en), Tenant-Dateien entfernt (behalten: {{ behalten | join(', ') or 'nichts' }})"
+        msg: "Aufgeräumt: {{ states.s3_keys | select('match', '^dbaas/') | list | length }} Datenbank(en), Tenant-Dateien entfernt (behalten: {{ behalten_liste | join(', ') or 'nichts' }})"

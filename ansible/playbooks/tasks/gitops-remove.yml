@@ -17,7 +17,7 @@
     for f in gitops/tenants/*/*.yaml; do
       [ -e "$f" ] || continue
       base="$(basename "$f" .yaml)"; ns="${base%%-db-*}"
-      case " {{ behalten | join(' ') }} " in *" $ns "*) continue ;; esac
+      case " {{ behalten_liste | join(' ') }} " in *" $ns "*) continue ;; esac
       git rm -q "$f"
     done
     git diff --cached --quiet && { echo "nichts zu entfernen"; exit 0; }
