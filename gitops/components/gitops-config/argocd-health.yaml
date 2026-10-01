@@ -14,7 +14,10 @@ metadata:
 spec:
   extraConfig:
     timeout.reconciliation: 60s
-    timeout.reconciliation.jitter: 10s
+  controller:
+    env:
+      - name: ARGOCD_RECONCILIATION_JITTER
+        value: 10s
   resourceHealthChecks:
     - group: policy.open-cluster-management.io
       kind: Policy
