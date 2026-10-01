@@ -7,6 +7,7 @@
   gather_facts: false
   vars:
     model: granite
+    tier_labels: { standard: "Local", premium: "Local + public" }
     team: demo
     valid_for: 7d
     maas_url: https://maas.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
@@ -48,7 +49,7 @@
           base_url: "{{ maas_url }}/v1"
           model: "{{ models[model].id }}"
           api_key: "{{ key.json.key }}"
-          subscription: "{{ models[model].subscription }}"
+          subscription: "{{ tier_labels[models[model].subscription] }}"
           valid_for: "{{ valid_for }}"
           usage: "OpenAI compatible: POST {{ maas_url }}/v1/chat/completions with 'Authorization: Bearer <api_key>'"
           ordered_by: "{{ requester }} via {{ channel }}"
@@ -56,4 +57,4 @@
 
     - name: Summary
       ansible.builtin.debug:
-        msg: "Key for {{ models[model].id }} ({{ models[model].description }}), subscription {{ models[model].subscription }}, valid for {{ valid_for }}. Endpoint: {{ maas_url }}/v1"
+        msg: "Key for {{ models[model].id }} ({{ models[model].description }}), tier {{ tier_labels[models[model].subscription] }}, valid for {{ valid_for }}. Endpoint: {{ maas_url }}/v1"

@@ -51,7 +51,7 @@
       register: dbsec
       failed_when: dbsec.resources | length == 0
 
-    - name: MaaS key for the app (subscription standard, Granite)
+    - name: MaaS key for the app (tier "Local", Granite)
       when: ai_enabled | bool
       ansible.builtin.uri:
         url: "{{ maas_url }}/maas-api/v1/api-keys"
@@ -122,7 +122,7 @@
         data:
           app: "https://news-frontend-{{ namespace }}.{{ cluster_domain }}"
           namespace: "{{ namespace }}"
-          ai: "{{ 'location extraction through ' ~ maas_model ~ ' (MaaS, subscription standard)' if ai_enabled | bool else 'off' }}"
+          ai: "{{ 'location extraction through ' ~ maas_model ~ ' (MaaS, tier Local)' if ai_enabled | bool else 'off' }}"
           database: "{{ ('db-' ~ db_name ~ ' (Amazon RDS, PostGIS)') if db_name else 'built-in PostGIS' }}"
           git_commit: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
           ordered_by: "{{ requester }} via {{ channel }}"

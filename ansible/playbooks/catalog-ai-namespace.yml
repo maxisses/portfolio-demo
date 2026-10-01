@@ -50,7 +50,7 @@
       ansible.builtin.set_fact:
         workbench_image: "{{ (is.resources[0].status.tags | selectattr('tag', 'equalto', '3.5') | first)['items'][0].dockerImageReference }}"
 
-    - name: Issue a MaaS key for the namespace (subscription premium)
+    - name: Issue a MaaS key for the namespace (tier "Local + public")
       ansible.builtin.uri:
         url: "{{ maas_url }}/maas-api/v1/api-keys"
         method: POST
@@ -108,6 +108,6 @@
           dashboard: "{{ rhoai_url }}/projects/{{ ns_name }}"
           workbench: "{{ rhoai_url }}/notebook/{{ ns_name }}/workbench"
           hardware: "{{ 'NVIDIA L4 GPU, PyTorch (CUDA); the GPU node may take a few minutes to start' if gpu_enabled | bool else 'CPU, Jupyter Data Science' }}"
-          maas: "Key is available as secret maas-access in the namespace (subscription premium)"
+          maas: "Key is available as secret maas-access in the namespace (tier Local + public)"
           git_commit: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
           ordered_by: "{{ requester }} via {{ channel }}"

@@ -1,4 +1,5 @@
-# Tiers: standard = the self-hosted model only, premium = self-hosted plus external models.
+# Tiers (internal name -> label): standard -> "Local" (self-hosted only),
+# premium -> "Local + public" (self-hosted plus external models).
 # Owner is every authenticated identity; the tier is set by the API key that the catalog item
 # "Model Endpoint" issues for a subscription.
 apiVersion: maas.opendatahub.io/v1alpha1
@@ -7,8 +8,8 @@ metadata:
   name: standard
   namespace: models-as-a-service
   annotations:
-    openshift.io/display-name: "Standard"
-    openshift.io/description: "Only the self-hosted model"
+    openshift.io/display-name: "Local"
+    openshift.io/description: "Only self-hosted models: the data stays on our platform"
 spec:
   owner:
     groups:
@@ -28,8 +29,8 @@ metadata:
   name: premium
   namespace: models-as-a-service
   annotations:
-    openshift.io/display-name: "Premium"
-    openshift.io/description: "Self-hosted and external models; external tokens cost money"
+    openshift.io/display-name: "Local + public"
+    openshift.io/description: "Self-hosted and public models; public tokens cost money and leave the platform"
 spec:
   owner:
     groups:
@@ -69,7 +70,7 @@ metadata:
   name: external-models
   namespace: models-as-a-service
   annotations:
-    openshift.io/display-name: "External models"
+    openshift.io/display-name: "Public models"
 spec:
   modelRefs:
     - name: claude-haiku-4-5
@@ -91,7 +92,7 @@ metadata:
   name: self-hosted-models
   namespace: models-as-a-service
   annotations:
-    openshift.io/display-name: "Self-hosted models"
+    openshift.io/display-name: "Local models"
 spec:
   modelRefs:
     - name: granite
