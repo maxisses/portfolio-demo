@@ -1,7 +1,9 @@
 # Health check for ACM policies in Argo CD. Argo's built-in check marks a NonCompliant policy
 # as Degraded, which fails the sync and keeps retrying the old revision, so a new commit
 # (e.g. inform -> enforce) waits up to ten minutes. Compliance is ACM's job: for Argo a
-# policy is healthy as soon as ACM reports a status. Server-side apply touches only this field.
+# policy is healthy as soon as ACM reports a status. Git is polled every 60 s instead of 180 s,
+# so a commit made in the GitHub UI during the demo shows up quickly. Server-side apply touches
+# only these fields.
 apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
@@ -10,6 +12,8 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-options: ServerSideApply=true
 spec:
+  extraConfig:
+    timeout.reconciliation: 60s
   resourceHealthChecks:
     - group: policy.open-cluster-management.io
       kind: Policy
