@@ -17,6 +17,13 @@
     GIT_SSH_COMMAND: "ssh -i {{ gitops_workdir }}-key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
   changed_when: false
 
+- name: Create target directories
+  ansible.builtin.file:
+    path: "{{ gitops_workdir }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ commit.files | map(attribute='path') | map('dirname') | unique | list }}"
+
 - name: Write the generated files
   ansible.builtin.copy:
     dest: "{{ gitops_workdir }}/{{ item.path }}"

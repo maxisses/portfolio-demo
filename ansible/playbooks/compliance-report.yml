@@ -24,7 +24,7 @@
         commit:
           message: "Compliance report: {{ policy_name }} not satisfied on {{ target_clusters | join(', ') or 'unknown' }} (triggered by ACM, AAP job {{ tower_job_id | default('local') }})"
           files:
-            - path: "docs/compliance/{{ stamp }}-{{ policy_name | regex_replace('^.*\\.', '') }}.md"
+            - path: "docs/compliance/{{ stamp }}-{{ policy_name | regex_replace('^.*\\.', '') }}-job{{ tower_job_id | default('local') }}.md"
               content: |
                 # Compliance report: {{ policy_name }}
 
@@ -35,7 +35,7 @@
                 ## Violations
 
                 {% for cluster, details in (policy_violations | default({})).items() %}
-                - **{{ cluster }}**: {{ details.message | default(details) | string | truncate(400) }}
+                - {{ cluster }}: {{ (details.details | default([]) | map(attribute='history') | map('first') | map(attribute='message') | join('; ')) or (details | string | truncate(300)) }}
                 {% else %}
                 - no details passed
                 {% endfor %}
