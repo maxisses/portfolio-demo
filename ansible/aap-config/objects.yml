@@ -43,6 +43,13 @@ aap_catalog_templates:
     survey:
       - { variable: ns_name, question_name: Name des AI-Namespace, question_description: "Kleinbuchstaben, Ziffern, Bindestriche", type: text, required: true, min: 2, max: 42 }
       - { variable: team, question_name: Team, type: text, required: true, default: ai, min: 2, max: 22 }
+  - name: "Betrieb: Katalog aufräumen"
+    description: Entfernt alle per Katalog bestellten Namespaces, AI-Namespaces und Datenbanken (außer den angegebenen). Nur für den Plattformbetrieb.
+    playbook: ansible/playbooks/cleanup.yml
+    credentials: [cred_deploykey, cred_tfstate]
+    execute: []
+    survey:
+      - { variable: behalten, question_name: "Namespaces behalten (kommagetrennt, leer = alles entfernen)", type: text, required: false, default: "" }
 
 # Workflows mit Freigabe: Der Besteller sieht nur den Workflow; das ausführende Template
 # ist intern (nicht im Katalog), freigeben kann der Admin.

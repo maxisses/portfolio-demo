@@ -1,0 +1,30 @@
+---
+# Entfernt generierte Tenant-Dateien (alle *.yaml unter gitops/tenants/, außer "behalten").
+- name: Deploy Key ablegen
+  ansible.builtin.copy:
+    dest: "{{ gitops_workdir }}-key"
+    content: "{{ (lookup('ansible.builtin.env', 'GIT_DEPLOY_KEY_B64') | b64decode | trim) ~ '\n' }}"
+    mode: "0600"
+  no_log: true
+
+- name: Aufräumen und pushen
+  ansible.builtin.shell: |
+    set -e
+    git clone -q --depth 20 {{ gitops_repo_ssh }} {{ gitops_workdir }}
+    cd {{ gitops_workdir }}
+    git config user.name "Ansible Automation Platform"
+    git config user.email "aap@portfolio-demo.invalid"
+    for f in gitops/tenants/*/*.yaml; do
+      [ -e "$f" ] || continue
+      base="$(basename "$f" .yaml)"; ns="${base%%-db-*}"
+      case " {{ behalten | join(' ') }} " in *" $ns "*) continue ;; esac
+      git rm -q "$f"
+    done
+    git diff --cached --quiet && { echo "nichts zu entfernen"; exit 0; }
+    git commit -q -m "Aufräumen: generierte Tenants entfernt (AAP-Job {{ tower_job_id | default('lokal') }})"
+    for i in 1 2 3 4 5; do git push -q origin HEAD:main && break; git pull -q --rebase origin main; done
+    echo "entfernt"
+  environment:
+    GIT_SSH_COMMAND: "ssh -i {{ gitops_workdir }}-key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+  register: rm
+  changed_when: "'entfernt' in rm.stdout"

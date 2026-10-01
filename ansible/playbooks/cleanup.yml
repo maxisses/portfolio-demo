@@ -1,0 +1,74 @@
+---
+# Setzt den Katalog zurück (nach Tests und vor der Demo): entfernt die generierten
+# Tenant-Dateien aus Git (Argo CD löscht die Namespaces, auch am Edge), zerstört jede per
+# Katalog bestellte Datenbank über ihren eigenen Terraform-State und löscht die zugehörigen
+# Secrets. Namespaces in "behalten" bleiben stehen.
+- name: Katalog aufräumen
+  hosts: localhost
+  gather_facts: false
+  vars:
+    behalten: []
+    gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
+    gitops_workdir: "/tmp/gitops-{{ tower_job_id | default('local') }}"
+    region: eu-central-1
+  tasks:
+    - name: "Eingabe 'behalten' als Liste (Survey liefert Text)"
+      ansible.builtin.set_fact:
+        behalten: "{{ (behalten.split(',') if behalten is string else behalten) | map('trim') | select | list }}"
+
+    - name: State-Bucket aus dem Terraform-Backend-Credential
+      ansible.builtin.set_fact:
+        state_bucket: "{{ lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'TF_BACKEND_CONFIG_FILE')) | regex_search('bucket\\s*=\\s*\"([^\"]+)\"', '\\1') | first }}"
+
+    - name: Bestellte Datenbanken (States unter dbaas/)
+      amazon.aws.s3_object:
+        bucket: "{{ state_bucket }}"
+        mode: list
+        prefix: dbaas/
+        region: "{{ region }}"
+      register: states
+
+    - name: Datenbanken zerstören (terraform destroy je Bestellung)
+      cloud.terraform.terraform:
+        project_path: "{{ playbook_dir }}/../../terraform/modules/dbaas"
+        binary_path: /usr/local/bin/terraform
+        state: absent
+        force_init: true
+        backend_config_files:
+          - "{{ lookup('ansible.builtin.env', 'TF_BACKEND_CONFIG_FILE') }}"
+        backend_config:
+          key: "{{ item }}"
+        variables:
+          name: "{{ item | basename | regex_replace('\\.tfstate$', '') }}"
+          namespace: aufraeumen
+      loop: "{{ states.s3_keys | select('match', '^dbaas/.+\\.tfstate$') | list }}"
+
+    - name: State-Dateien der zerstörten Datenbanken entfernen
+      amazon.aws.s3_object:
+        bucket: "{{ state_bucket }}"
+        object: "{{ item }}"
+        mode: delobj
+        region: "{{ region }}"
+      loop: "{{ states.s3_keys | select('match', '^dbaas/.+\\.tfstate$') | list }}"
+
+    - name: Generierte Tenant-Dateien entfernen und committen
+      ansible.builtin.include_tasks: tasks/gitops-remove.yml
+
+    - name: MaaS-Zugänge der AI-Namespaces in Secrets Manager löschen
+      ansible.builtin.shell: |
+        python3 - <<'PY'
+        import boto3
+        sm = boto3.client("secretsmanager", region_name="{{ region }}")
+        keep = set({{ behalten | to_json }})
+        for page in sm.get_paginator("list_secrets").paginate(Filters=[{"Key": "name", "Values": ["portfolio-demo/ai-ns/"]}]):
+            for s in page["SecretList"]:
+                if s["Name"].rsplit("/", 1)[-1] not in keep:
+                    sm.delete_secret(SecretId=s["ARN"], ForceDeleteWithoutRecovery=True)
+                    print("gelöscht:", s["Name"])
+        PY
+      register: sec
+      changed_when: "'gelöscht' in sec.stdout"
+
+    - name: Zusammenfassung
+      ansible.builtin.debug:
+        msg: "Aufgeräumt: {{ states.s3_keys | select('match', '^dbaas/') | list | length }} Datenbank(en), Tenant-Dateien entfernt (behalten: {{ behalten | join(', ') or 'nichts' }})"
