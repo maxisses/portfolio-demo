@@ -14,6 +14,7 @@ metadata:
 spec:
   extraConfig:
     timeout.reconciliation: 60s
+    timeout.reconciliation.jitter: 10s
   resourceHealthChecks:
     - group: policy.open-cluster-management.io
       kind: Policy
