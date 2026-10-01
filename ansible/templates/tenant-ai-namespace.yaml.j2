@@ -13,7 +13,7 @@ metadata:
   annotations:
     openshift.io/requester: {{ requester }}
     openshift.io/display-name: "{{ ns_name }} (AI, team {{ team }})"
-    openshift.io/description: "AI namespace from the self-service catalog: workbench, samples, MaaS access"
+    openshift.io/description: "AI namespace from the self-service catalog: {{ 'GPU ' if gpu_enabled | bool else '' }}workbench, samples, MaaS access"
 ---
 apiVersion: v1
 kind: ResourceQuota
@@ -23,9 +23,9 @@ metadata:
 spec:
   hard:
     requests.cpu: "8"
-    requests.memory: 16Gi
+    requests.memory: {{ "24Gi" if gpu_enabled | bool else "16Gi" }}
     limits.cpu: "16"
-    limits.memory: 32Gi
+    limits.memory: {{ "48Gi" if gpu_enabled | bool else "32Gi" }}
     requests.nvidia.com/gpu: "1"
     persistentvolumeclaims: "5"
 ---
@@ -99,15 +99,21 @@ metadata:
     opendatahub.io/odh-managed: "true"
   annotations:
     notebooks.opendatahub.io/inject-auth: "true"
-    notebooks.opendatahub.io/last-image-selection: "s2i-generic-data-science-notebook:3.5"
-    opendatahub.io/image-display-name: "Jupyter | Data Science | CPU | Python 3.12"
-    opendatahub.io/hardware-profile-name: default-profile
+    notebooks.opendatahub.io/last-image-selection: "{{ workbench_imagestream }}:3.5"
+    opendatahub.io/image-display-name: "{{ workbench_image_name }}"
+    opendatahub.io/hardware-profile-name: {{ "nvidia-l4" if gpu_enabled | bool else "default-profile" }}
     opendatahub.io/hardware-profile-namespace: redhat-ods-applications
     openshift.io/display-name: "Workbench team {{ team }}"
 spec:
   template:
     spec:
       enableServiceLinks: false
+{% if gpu_enabled | bool %}
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+        - { key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }
+{% endif %}
       initContainers:
         # Fetch sample notebooks from the repository (only if not there yet)
         - name: samples
@@ -146,8 +152,13 @@ spec:
               containerPort: 8888
               protocol: TCP
           resources:
+{% if gpu_enabled | bool %}
+            requests: { cpu: "2", memory: 12Gi, nvidia.com/gpu: "1" }
+            limits: { cpu: "4", memory: 16Gi, nvidia.com/gpu: "1" }
+{% else %}
             requests: { cpu: "1", memory: 2Gi }
             limits: { cpu: "2", memory: 4Gi }
+{% endif %}
           volumeMounts:
             - name: workbench
               mountPath: /opt/app-root/src

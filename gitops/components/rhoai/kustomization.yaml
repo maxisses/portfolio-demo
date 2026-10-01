@@ -4,3 +4,4 @@ resources:
   - operator.yaml
   - datasciencecluster.yaml
   - dashboard-config.yaml
+  - hardwareprofile-gpu.yaml

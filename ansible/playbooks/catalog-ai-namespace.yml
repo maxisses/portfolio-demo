@@ -1,6 +1,6 @@
 ---
-# Catalog item "AI Namespace": data science project on the hub with a workbench, sample
-# notebooks and pre-wired MaaS access. MaaS key to Secrets Manager, everything else as YAML
+# Catalog item "AI Namespace": data science project on the hub with a workbench (optionally
+# with an NVIDIA L4 GPU and PyTorch for ML engineers), sample notebooks and pre-wired MaaS access. MaaS key to Secrets Manager, everything else as YAML
 # to Git; Argo CD rolls it out.
 - name: Order an AI namespace
   hosts: localhost
@@ -8,6 +8,7 @@
   vars:
     ns_name: ""
     team: demo
+    gpu: "no"
     maas_url: https://maas.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
     rhoai_url: https://rh-ai.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
     samples_repo: https://github.com/maxisses/portfolio-demo.git
@@ -20,6 +21,10 @@
     maas_secret: "portfolio-demo/ai-ns/{{ ns_name }}"
     standard_model: publishers/ai-engineering/models/granite
   tasks:
+    - name: Normalize input (the survey delivers text)
+      ansible.builtin.set_fact:
+        gpu_enabled: "{{ gpu | string | lower in ['true', 'yes', '1'] }}"
+
     - name: Validate input
       ansible.builtin.assert:
         that:
@@ -28,12 +33,17 @@
           - not ns_name.startswith(('openshift', 'kube', 'default', 'redhat'))
         fail_msg: "Name/team: lowercase letters, digits, dashes"
 
-    - name: Workbench image from the RHOAI image stream (Jupyter Data Science 3.5)
+    - name: Workbench image from the RHOAI image stream (Data Science on CPU or PyTorch on CUDA, 3.5)
+      ansible.builtin.set_fact:
+        workbench_imagestream: "{{ 'pytorch' if gpu_enabled | bool else 's2i-generic-data-science-notebook' }}"
+        workbench_image_name: "{{ 'Jupyter | PyTorch | CUDA | Python 3.12' if gpu_enabled | bool else 'Jupyter | Data Science | CPU | Python 3.12' }}"
+
+    - name: Look up the image stream
       kubernetes.core.k8s_info:
         api_version: image.openshift.io/v1
         kind: ImageStream
         namespace: redhat-ods-applications
-        name: s2i-generic-data-science-notebook
+        name: "{{ workbench_imagestream }}"
       register: is
 
     - name: Remember the image
@@ -72,7 +82,7 @@
       ansible.builtin.include_tasks: tasks/gitops-commit.yml
       vars:
         commit:
-          message: "AI namespace {{ ns_name }} (team {{ team }}; ordered by {{ requester }} via {{ channel }}, AAP job {{ request_id }})"
+          message: "AI namespace {{ ns_name }} (team {{ team }}{{ ', GPU workbench' if gpu_enabled | bool else '' }}; ordered by {{ requester }} via {{ channel }}, AAP job {{ request_id }})"
           files:
             - path: "gitops/tenants/portfolio-hub/{{ ns_name }}.yaml"
               content: "{{ lookup('ansible.builtin.template', '../templates/tenant-ai-namespace.yaml.j2') }}"
@@ -97,6 +107,7 @@
           namespace: "{{ ns_name }}"
           dashboard: "{{ rhoai_url }}/projects/{{ ns_name }}"
           workbench: "{{ rhoai_url }}/notebook/{{ ns_name }}/workbench"
+          hardware: "{{ 'NVIDIA L4 GPU, PyTorch (CUDA); the GPU node may take a few minutes to start' if gpu_enabled | bool else 'CPU, Jupyter Data Science' }}"
           maas: "Key is available as secret maas-access in the namespace (subscription premium)"
           git_commit: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
           ordered_by: "{{ requester }} via {{ channel }}"

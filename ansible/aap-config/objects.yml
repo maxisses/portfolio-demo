@@ -42,13 +42,14 @@ aap_catalog_templates:
       - { variable: team, question_name: Team, type: text, required: true, default: demo, min: 2, max: 22 }
 
   - name: "Catalog: AI Namespace"
-    description: Data science project on OpenShift AI with a workbench, sample notebooks and pre-wired access to Models-as-a-Service.
+    description: Data science project on OpenShift AI with a workbench (optionally with a GPU), sample notebooks and pre-wired access to Models-as-a-Service.
     playbook: ansible/playbooks/catalog-ai-namespace.yml
     credentials: [cred_deploykey, cred_hub]
     execute: [max, agent-claude]
     survey:
       - { variable: ns_name, question_name: AI namespace name, question_description: "lowercase letters, digits, dashes", type: text, required: true, min: 2, max: 42 }
       - { variable: team, question_name: Team, type: text, required: true, default: ai, min: 2, max: 22 }
+      - { variable: gpu, question_name: "GPU workbench (NVIDIA L4, PyTorch) for training and fine-tuning", type: multiplechoice, choices: ["no", "yes"], default: "no", required: true }
 
   - name: "Catalog: Deploy App (Localnews)"
     description: Golden path for app teams. Deploys Localnews into a namespace on the hub, optionally with AI (Granite via MaaS) and a managed database ordered before.

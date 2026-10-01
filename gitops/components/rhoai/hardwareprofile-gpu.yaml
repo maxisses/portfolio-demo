@@ -1,0 +1,26 @@
+# Hardware profile for GPU workbenches (ML engineers): one NVIDIA L4 from the GPU pool.
+# The catalog item "AI Namespace" with gpu=yes uses it; it also shows up in the dashboard.
+apiVersion: infrastructure.opendatahub.io/v1
+kind: HardwareProfile
+metadata:
+  name: nvidia-l4
+  namespace: redhat-ods-applications
+  labels:
+    app.opendatahub.io/hardwareprofile: "true"
+  annotations:
+    opendatahub.io/display-name: NVIDIA L4 (1 GPU)
+    opendatahub.io/description: One NVIDIA L4 with 24 GB for fine-tuning and experiments, 2 CPUs and 12 GiB of memory.
+    opendatahub.io/disabled: "false"
+    opendatahub.io/dashboard-feature-visibility: '[]'
+spec:
+  identifiers:
+    - { identifier: cpu, displayName: CPU, resourceType: CPU, defaultCount: 2, minCount: 1, maxCount: 4 }
+    - { identifier: memory, displayName: Memory, resourceType: Memory, defaultCount: 12Gi, minCount: 8Gi, maxCount: 24Gi }
+    - { identifier: nvidia.com/gpu, displayName: GPU, resourceType: Accelerator, defaultCount: 1, minCount: 1, maxCount: 1 }
+  scheduling:
+    type: Node
+    node:
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+        - { key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }
