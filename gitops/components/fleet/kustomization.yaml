@@ -7,4 +7,5 @@ resources:
   - policies-base.yaml
   - policy-gitops-edge.yaml
   - policy-console-banner.yaml
+  - policy-edge-version.yaml
   - gitops-pull.yaml

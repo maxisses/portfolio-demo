@@ -14,6 +14,9 @@ aap_users:
   - username: agent-claude
     first_name: Claude
     last_name: (Agent)
+  - username: acm-automation
+    first_name: ACM
+    last_name: (Hub-Automation)
 
 # Katalog: Job-Templates, die Menschen (Portal) und der Agent (MCP) ausführen dürfen.
 # Aus dem Survey baut das Portal das Formular; der Agent sieht dieselben Felder als Parameter.
@@ -61,6 +64,26 @@ aap_catalog_templates:
     survey:
       - { variable: behalten, question_name: "Namespaces behalten (kommagetrennt, leer = alles entfernen)", type: text, required: false, default: "" }
 
+  # Betrieb: von ACM gestartet (PolicyAutomation, ClusterCurator-Hooks), Variablen kommen von ACM
+  - name: "Compliance: Verstoß dokumentieren"
+    description: Von ACM bei Policy-Verstößen gestartet. Schreibt einen Bericht ins Repo (docs/compliance).
+    playbook: ansible/playbooks/compliance-report.yml
+    credentials: [cred_deploykey, cred_hub]
+    execute: [acm-automation, max]
+    ask_variables: true
+  - name: "Edge: Vorab-Check"
+    description: Prüft einen Edge-Cluster vor dem Upgrade über den Hub (Verfügbarkeit, Version, Localnews).
+    playbook: ansible/playbooks/edge-check.yml
+    credentials: [cred_hub]
+    execute: [acm-automation, max, agent-claude]
+    ask_variables: true
+  - name: "Edge: Smoke-Test"
+    description: Prüft einen Edge-Cluster nach dem Upgrade (erwartete Version, Localnews gesund).
+    playbook: ansible/playbooks/edge-check.yml
+    credentials: [cred_hub]
+    execute: [acm-automation, max, agent-claude]
+    ask_variables: true
+
 # Workflows mit Freigabe: Der Besteller sieht nur den Workflow; das ausführende Template
 # ist intern (nicht im Katalog), freigeben kann der Admin.
 aap_catalog_workflows:
@@ -77,3 +100,16 @@ aap_catalog_workflows:
       - { variable: db_name, question_name: Name der Datenbank, type: text, required: true, min: 2, max: 31 }
       - { variable: groesse, question_name: Größe, type: multiplechoice, choices: [klein, mittel], default: klein, required: true }
       - { variable: namespace, question_name: Ziel-Namespace (auf portfolio-hub), type: text, required: true, min: 2, max: 42 }
+  - name: "Betrieb: Edge-Upgrade"
+    description: Aktualisiert Edge-Cluster über ACM (ClusterCurator) mit AAP-Vorab-Check und -Smoke-Test. Mit Freigabe; Trockenlauf möglich.
+    approval: { name: "Freigabe: Edge-Upgrade", description: "Edge-Cluster werden aktualisiert und starten neu", timeout: 0 }
+    job_template:
+      name: "Edge-Upgrade (Ausführung, intern)"
+      description: Legt die ClusterCurator an; wird nur aus dem Workflow gestartet.
+      playbook: ansible/playbooks/edge-upgrade.yml
+      credentials: [cred_hub]
+    execute: [max, agent-claude]
+    survey:
+      - { variable: cluster, question_name: Edge-Cluster, type: multiplechoice, choices: [alle, ocp19, ocp20], default: alle, required: true }
+      - { variable: version, question_name: Zielversion, type: text, default: "4.22.15", required: true, min: 4, max: 12 }
+      - { variable: trockenlauf, question_name: "Trockenlauf (nur anzeigen)", type: multiplechoice, choices: ["ja", "nein"], default: "ja", required: true }

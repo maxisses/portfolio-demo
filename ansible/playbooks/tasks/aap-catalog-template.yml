@@ -16,7 +16,8 @@
         playbook: "{{ jt.playbook }}"
         inventory: "{{ aap_ids.inv }}"
         execution_environment: "{{ aap_ids.ee }}"
-        survey_enabled: true
+        survey_enabled: "{{ jt.survey is defined }}"
+        ask_variables_on_launch: "{{ jt.ask_variables | default(false) }}"
 
 - name: Template-ID merken
   ansible.builtin.set_fact:
@@ -36,6 +37,7 @@
   changed_when: false
 
 - name: Survey setzen
+  when: jt.survey is defined
   ansible.builtin.uri:
     url: "{{ aap_url }}/api/controller/v2/job_templates/{{ _jt_id }}/survey_spec/"
     method: POST

@@ -1,0 +1,50 @@
+# Zugang von ACM zu AAP (Host und Token des AAP-Nutzers acm-automation); Wert in Secrets Manager.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: aap-tower
+  namespace: portfolio-policies
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: aap-tower
+  dataFrom:
+    - extract:
+        key: portfolio-demo/aap/acm-token
+---
+# Zugang von ACM zu AAP (Host und Token des AAP-Nutzers acm-automation); Wert in Secrets Manager.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: aap-tower
+  namespace: ocp19
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: aap-tower
+  dataFrom:
+    - extract:
+        key: portfolio-demo/aap/acm-token
+---
+# Zugang von ACM zu AAP (Host und Token des AAP-Nutzers acm-automation); Wert in Secrets Manager.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: aap-tower
+  namespace: ocp20
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: aap-tower
+  dataFrom:
+    - extract:
+        key: portfolio-demo/aap/acm-token

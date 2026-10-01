@@ -47,3 +47,18 @@
 - name: Commit merken
   ansible.builtin.set_fact:
     commit_sha: "{{ _push.stdout_lines | last }}"
+
+- name: Argo CD sofort neu einlesen lassen (nicht auf das Polling warten)
+  kubernetes.core.k8s:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    namespace: openshift-gitops
+    name: "{{ item }}"
+    state: patched
+    definition:
+      metadata:
+        annotations:
+          argocd.argoproj.io/refresh: hard
+  loop: "{{ argo_refresh | default(['tenants-portfolio-hub']) }}"
+  failed_when: false
+  changed_when: false

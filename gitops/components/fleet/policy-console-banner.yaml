@@ -1,6 +1,8 @@
-# Demo-Moment "Live-Fix": Die Policy steht auf inform und ist damit auf allen
-# Clustern nicht compliant. Wer remediationAction auf enforce stellt und committet,
-# lässt ACM den Banner auf Hub und Edge ausrollen.
+# Persona Operator, "neue Compliance-Vorgabe": Alle Cluster müssen in der Konsole als
+# verwaltet gekennzeichnet sein. Ablauf in der Demo, jeweils per Commit:
+#   1. disabled: false   -> ACM prüft, meldet Verstöße, PolicyAutomation startet einen AAP-Job
+#   2. remediationAction: enforce -> ACM setzt die Vorgabe auf Hub und Edge durch
+# Zurücksetzen nach der Demo: disabled: true, remediationAction: inform.
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
 metadata:
@@ -12,7 +14,7 @@ metadata:
     policy.open-cluster-management.io/controls: Kennzeichnung verwalteter Cluster
 spec:
   remediationAction: inform
-  disabled: false
+  disabled: true
   policy-templates:
     - objectDefinition:
         apiVersion: policy.open-cluster-management.io/v1

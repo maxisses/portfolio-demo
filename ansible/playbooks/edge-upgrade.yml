@@ -1,0 +1,78 @@
+---
+# "Betrieb: Edge-Upgrade" (Ausführung, nach Freigabe): legt pro Edge-Cluster einen
+# ClusterCurator an. ACM ruft dann den AAP-Vorab-Check, aktualisiert den Cluster und ruft
+# danach den AAP-Smoke-Test. Mit trockenlauf=ja wird nur angezeigt, was passieren würde.
+- name: Edge-Upgrade orchestrieren
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cluster: alle
+    version: "4.22.15"
+    kanal: stable-4.22
+    trockenlauf: "ja"
+  tasks:
+    - name: Zielcluster bestimmen
+      ansible.builtin.set_fact:
+        ziele: "{{ ['ocp19', 'ocp20'] if cluster == 'alle' else [cluster] }}"
+        nur_anzeigen: "{{ trockenlauf | string | lower in ['ja', 'true', 'yes', '1'] }}"
+
+    - name: Vorab-Check je Cluster (Verfügbarkeit, aktuelle Version)
+      kubernetes.core.k8s_info:
+        api_version: cluster.open-cluster-management.io/v1
+        kind: ManagedCluster
+        name: "{{ item }}"
+      loop: "{{ ziele }}"
+      register: mcs
+
+    - name: Übersicht
+      ansible.builtin.debug:
+        msg: "{{ item.item }}: aktuell {{ (item.resources[0].status.clusterClaims | default([]) | selectattr('name', 'equalto', 'version.openshift.io') | map(attribute='value') | first) | default('unbekannt') }} -> Ziel {{ version }}"
+      loop: "{{ mcs.results }}"
+      loop_control: { label: "{{ item.item }}" }
+
+    - name: ClusterCurator je Cluster
+      ansible.builtin.set_fact:
+        curators: "{{ curators | default([]) + [curator] }}"
+      loop: "{{ ziele }}"
+      vars:
+        curator:
+          apiVersion: cluster.open-cluster-management.io/v1beta1
+          kind: ClusterCurator
+          metadata:
+            name: "{{ item }}"
+            namespace: "{{ item }}"
+            labels: { portfolio-demo/managed-by: aap, portfolio-demo/request-id: "{{ tower_workflow_job_id | default(tower_job_id) | default('lokal') }}" }
+          spec:
+            desiredCuration: upgrade
+            upgrade:
+              desiredUpdate: "{{ version }}"
+              channel: "{{ kanal }}"
+              monitorTimeout: 120
+              towerAuthSecret: aap-tower
+              prehook:
+                - name: "Edge: Vorab-Check"
+                  extra_vars: { cluster: "{{ item }}", pruefung: vorab }
+              posthook:
+                - name: "Edge: Smoke-Test"
+                  extra_vars: { cluster: "{{ item }}", pruefung: nachher, erwartete_version: "{{ version }}" }
+
+    - name: Trockenlauf, nur anzeigen
+      when: nur_anzeigen | bool
+      ansible.builtin.debug:
+        msg: "{{ curators | to_nice_yaml }}"
+
+    - name: Upgrade anstoßen (ACM übernimmt)
+      when: not (nur_anzeigen | bool)
+      kubernetes.core.k8s:
+        state: present
+        apply: true
+        definition: "{{ item }}"
+      loop: "{{ curators }}"
+      loop_control: { label: "{{ item.metadata.name }}" }
+
+    - name: Ergebnis
+      ansible.builtin.set_stats:
+        data:
+          cluster: "{{ ziele }}"
+          zielversion: "{{ version }}"
+          modus: "{{ 'Trockenlauf, nichts geändert' if nur_anzeigen | bool else 'Upgrade gestartet, ACM fährt Vorab-Check, Upgrade und Smoke-Test' }}"

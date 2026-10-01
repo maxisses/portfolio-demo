@@ -1,0 +1,51 @@
+---
+# "Compliance: Verstoß dokumentieren": wird von ACM (PolicyAutomation) gestartet, sobald eine
+# Policy auf Clustern nicht erfüllt ist. ACM übergibt policy_name, target_clusters und
+# policy_violations. Der Job schreibt einen Bericht ins Repo (Audit-Trail in Git).
+- name: Compliance-Verstoß dokumentieren
+  hosts: localhost
+  gather_facts: false
+  vars:
+    policy_name: "{{ policy | default('unbekannt') }}"
+    target_clusters: []
+    policy_violations: {}
+    gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
+    gitops_repo_web: https://github.com/maxisses/portfolio-demo
+    gitops_workdir: "/tmp/gitops-{{ tower_job_id | default('local') }}"
+  tasks:
+    - name: Zeitstempel
+      ansible.builtin.set_fact:
+        now_utc: "{{ lookup('ansible.builtin.pipe', 'date -u +%Y-%m-%dT%H:%MZ') }}"
+        stamp: "{{ lookup('ansible.builtin.pipe', 'date -u +%Y%m%d-%H%M') }}"
+
+    - name: Bericht nach Git
+      ansible.builtin.include_tasks: tasks/gitops-commit.yml
+      vars:
+        commit:
+          message: "Compliance-Bericht: {{ policy_name }} auf {{ target_clusters | join(', ') or 'unbekannt' }} nicht erfüllt (ausgelöst von ACM, AAP-Job {{ tower_job_id | default('lokal') }})"
+          files:
+            - path: "docs/compliance/{{ stamp }}-{{ policy_name | regex_replace('^.*\\.', '') }}.md"
+              content: |
+                # Compliance-Bericht: {{ policy_name }}
+
+                - Zeitpunkt: {{ now_utc }}
+                - Ausgelöst von: ACM PolicyAutomation, ausgeführt von Ansible Automation Platform (Job {{ tower_job_id | default('lokal') }})
+                - Betroffene Cluster: {{ target_clusters | join(', ') or 'unbekannt' }}
+
+                ## Verstöße
+
+                {% for cluster, details in (policy_violations | default({})).items() %}
+                - **{{ cluster }}**: {{ details.message | default(details) | string | truncate(400) }}
+                {% else %}
+                - keine Details übergeben
+                {% endfor %}
+
+                ## Nächster Schritt
+
+                Vorgabe prüfen und auf `enforce` stellen (gitops/components/fleet).
+
+    - name: Ergebnis
+      ansible.builtin.set_stats:
+        data:
+          bericht: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
+          cluster: "{{ target_clusters }}"

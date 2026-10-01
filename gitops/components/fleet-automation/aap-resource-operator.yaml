@@ -1,0 +1,27 @@
+# AAP-Operator (cluster-scoped) nur für seine Resource-CRDs, vor allem AnsibleJob.
+# Damit kann ACM Jobs im AAP auf der VM starten: PolicyAutomation bei Policy-Verstößen und
+# Pre-/Post-Hooks bei Cluster-Upgrades (ClusterCurator). Eine zweite AAP wird nicht installiert.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aap-operator
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: aap-operator
+  namespace: aap-operator
+spec:
+  upgradeStrategy: Default
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: ansible-automation-platform-operator
+  namespace: aap-operator
+spec:
+  channel: stable-2.7-cluster-scoped
+  installPlanApproval: Automatic
+  name: ansible-automation-platform-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
