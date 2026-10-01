@@ -13,8 +13,8 @@ metadata:
     policy.open-cluster-management.io/categories: Operations
     policy.open-cluster-management.io/controls: Marking of managed clusters
 spec:
-  remediationAction: enforce
-  disabled: false
+  remediationAction: inform
+  disabled: true
   policy-templates:
     - objectDefinition:
         apiVersion: policy.open-cluster-management.io/v1
