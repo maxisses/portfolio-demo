@@ -30,6 +30,19 @@ cp "$root/agent/CLAUDE.md" "$dest/CLAUDE.md"
 token="$(aws secretsmanager get-secret-value --secret-id portfolio-demo/aap/agent-token --query SecretString --output text)"
 sed -e "s#__KUBECONFIG__#$kc#" -e "s#\${AAP_AGENT_TOKEN}#$token#" "$root/agent/mcp.json.template" > "$dest/.mcp.json"
 chmod 600 "$dest/.mcp.json"
+# Projekt-Einstellungen: MCP-Server aus .mcp.json ohne Rückfrage laden, Tool-Aufrufe erlauben.
+# Die Grenze zieht die Plattform: agent-claude darf in AAP nur Katalog-Templates starten,
+# auf den Clustern nur lesen; Kostenpflichtiges hält an einer Freigabe.
+mkdir -p "$dest/.claude"
+cat > "$dest/.claude/settings.local.json" <<'SETTINGS'
+{
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": ["aap", "openshift"],
+  "permissions": {
+    "allow": ["mcp__aap", "mcp__openshift"]
+  }
+}
+SETTINGS
 cat > "$dest/start.sh" <<START
 #!/usr/bin/env bash
 # Startet Claude Code als Demo-Agent. Das AAP-Token kommt frisch aus AWS Secrets Manager.
