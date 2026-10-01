@@ -23,6 +23,8 @@ spec:
     automated:
       prune: true
       selfHeal: true
+      # Nach dem Aufräumen ist die App leer; ohne allowEmpty würde Argo CD nicht prunen.
+      allowEmpty: true
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -61,3 +63,4 @@ spec:
         automated:
           prune: true
           selfHeal: true
+          allowEmpty: true
