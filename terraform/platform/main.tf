@@ -77,3 +77,23 @@ resource "aws_secretsmanager_secret_version" "maas_db" {
 output "eso_role_arn" {
   value = aws_iam_role.eso.arn
 }
+
+# Anthropic-Key für das externe Modell (Claude Haiku hinter MaaS). Wert kommt aus .env
+# (TF_VAR_anthropic_api_key, gesetzt von scripts/tf.sh), landet nur im State (S3, verschlüsselt)
+# und in Secrets Manager.
+variable "anthropic_api_key" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+resource "aws_secretsmanager_secret" "anthropic" {
+  name                    = "portfolio-demo/anthropic"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "anthropic" {
+  count         = var.anthropic_api_key != "" ? 1 : 0
+  secret_id     = aws_secretsmanager_secret.anthropic.id
+  secret_string = jsonencode({ "api-key" = var.anthropic_api_key })
+}

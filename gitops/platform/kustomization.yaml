@@ -4,6 +4,7 @@ resources:
   - aap-integration.yaml
   - acm.yaml
   - agent-access.yaml
+  - ai-models.yaml
   - apps.yaml
   - cert-manager.yaml
   - connectivity-link.yaml

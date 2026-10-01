@@ -16,6 +16,7 @@ if [ "${RHCS_AUTH:-rosa}" = "rosa" ] && [ -f "$ocm_cfg" ]; then
   export RHCS_TOKEN="$(jq -r .refresh_token "$ocm_cfg")" RHCS_CLIENT_ID="$(jq -r .client_id "$ocm_cfg")"
   unset RHCS_CLIENT_SECRET
 fi
+[ -n "${ANTHROPIC_API_KEY:-}" ] && export TF_VAR_anthropic_api_key="$ANTHROPIC_API_KEY"
 export TF_VAR_admin_cidr="${TF_VAR_admin_cidr:-$(curl -s https://checkip.amazonaws.com)/32}"
 cd "$root/terraform/$dir"
 if [ ! -d .terraform ] || [ "${1:-}" = "init" ]; then

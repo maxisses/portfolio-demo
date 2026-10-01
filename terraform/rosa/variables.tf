@@ -27,7 +27,7 @@ variable "compute_replicas" {
 variable "gpu_pool_enabled" {
   description = "GPU-Pool erst nach Freigabe durch Max einschalten"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "gpu_instance_type" {

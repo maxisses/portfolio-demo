@@ -1,0 +1,73 @@
+# Externes Modell hinter MaaS (Technology Preview): Claude Haiku 4.5 über die Anthropic-API.
+# Der Key kommt aus AWS Secrets Manager (portfolio-demo/anthropic, terraform/platform).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-models
+  labels:
+    opendatahub.io/generated-namespace: "true"
+    maas.opendatahub.io/gateway-access: "true"
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: anthropic-api-key
+  namespace: external-models
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: anthropic-api-key
+    template:
+      metadata:
+        labels:
+          # über diese Labels findet der Gateway (3.5 bzw. 3.4) den Key
+          inference.llm-d.ai/ipp-managed: "true"
+          inference.networking.k8s.io/bbr-managed: "true"
+  data:
+    - secretKey: api-key
+      remoteRef:
+        key: portfolio-demo/anthropic
+        property: api-key
+---
+apiVersion: inference.opendatahub.io/v1alpha1
+kind: ExternalProvider
+metadata:
+  name: anthropic
+  namespace: external-models
+spec:
+  provider: anthropic
+  endpoint: api.anthropic.com
+  auth:
+    type: apikey
+    secretRef:
+      name: anthropic-api-key
+---
+apiVersion: inference.opendatahub.io/v1alpha1
+kind: ExternalModel
+metadata:
+  name: claude-haiku-4-5
+  namespace: external-models
+spec:
+  modelName: claude-haiku-4-5
+  externalProviderRefs:
+    - ref:
+        name: anthropic
+      targetModel: claude-haiku-4-5-20251001
+      apiFormat: openai-chat
+      path: /v1/messages
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: claude-haiku-4-5
+  namespace: external-models
+  annotations:
+    openshift.io/display-name: "Claude Haiku 4.5 (extern, Anthropic)"
+    openshift.io/description: "Externes Modell über die Anthropic-API, gleiche API wie die eigenen Modelle"
+spec:
+  modelRef:
+    kind: ExternalModel
+    name: claude-haiku-4-5

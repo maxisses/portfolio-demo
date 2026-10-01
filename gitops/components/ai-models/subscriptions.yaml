@@ -1,0 +1,39 @@
+# Tarife: standard = nur das eigene Modell, premium = eigenes plus externes Modell.
+# Eigentümer ist jede angemeldete Identität; welcher Tarif gilt, bestimmt der API-Key,
+# den das Katalog-Item "Model-Endpoint" für eine Subscription ausstellt.
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSSubscription
+metadata:
+  name: premium
+  namespace: models-as-a-service
+  annotations:
+    openshift.io/display-name: "Premium"
+    openshift.io/description: "Eigene und externe Modelle; externe Tokens kosten Geld"
+spec:
+  owner:
+    groups:
+      - name: system:authenticated
+    users: []
+  modelRefs:
+    - name: claude-haiku-4-5
+      namespace: external-models
+      tokenRateLimits:
+        - limit: 20000
+          window: 1h
+  priority: 20
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSAuthPolicy
+metadata:
+  name: externe-modelle
+  namespace: models-as-a-service
+  annotations:
+    openshift.io/display-name: "Externe Modelle"
+spec:
+  modelRefs:
+    - name: claude-haiku-4-5
+      namespace: external-models
+  subjects:
+    groups:
+      - name: system:authenticated
+    users: []
