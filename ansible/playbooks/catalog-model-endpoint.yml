@@ -1,0 +1,56 @@
+---
+# Katalog-Item "Model-Endpoint": stellt über die MaaS-API einen API-Key für ein Modell aus.
+# Identität ist der ServiceAccount von AAP am Hub (Credential "Hub-API"); die Subscription
+# legt Tarif und Token-Limit fest (standard = eigenes Modell, premium = auch externe Modelle).
+- name: Model-Endpoint bestellen
+  hosts: localhost
+  gather_facts: false
+  vars:
+    model: granite
+    team: demo
+    gueltig: 7d
+    maas_url: https://maas.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+    modelle:
+      granite: { id: granite, subscription: standard, beschreibung: "selbst gehostet auf OpenShift AI (llm-d, GPU)" }
+      claude-haiku-4-5: { id: claude-haiku-4-5, subscription: premium, beschreibung: "extern über die Anthropic-API (Technology Preview)" }
+    requester: "{{ tower_user_name | default('lokal') }}"
+    channel: "{{ 'agent' if requester is match('^agent-') else 'portal' }}"
+    request_id: "{{ tower_job_id | default('lokal') }}"
+  tasks:
+    - name: Eingaben prüfen
+      ansible.builtin.assert:
+        that:
+          - model in modelle
+          - team is match('^[a-z0-9]([-a-z0-9]{0,20}[a-z0-9])?$')
+        fail_msg: "Modell: {{ modelle.keys() | join(', ') }}; Team: Kleinbuchstaben, Ziffern, Bindestriche"
+
+    - name: API-Key bei MaaS ausstellen
+      ansible.builtin.uri:
+        url: "{{ maas_url }}/maas-api/v1/api-keys"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY') }}"
+        body_format: json
+        body:
+          name: "{{ team }}-{{ model }}-{{ request_id }}"
+          subscription: "{{ modelle[model].subscription }}"
+          expiresIn: "{{ gueltig }}"
+        status_code: [200, 201]
+      register: key
+      no_log: true
+
+    - name: Ergebnis für Portal und Agent
+      ansible.builtin.set_stats:
+        data:
+          base_url: "{{ maas_url }}/v1"
+          model: "{{ modelle[model].id }}"
+          api_key: "{{ key.json.key }}"
+          subscription: "{{ modelle[model].subscription }}"
+          gueltig: "{{ gueltig }}"
+          hinweis: "OpenAI-kompatibel: POST {{ maas_url }}/v1/chat/completions mit 'Authorization: Bearer <api_key>'"
+          ordered_by: "{{ requester }} via {{ channel }}"
+      no_log: true
+
+    - name: Zusammenfassung
+      ansible.builtin.debug:
+        msg: "Key für {{ modelle[model].id }} ({{ modelle[model].beschreibung }}), Subscription {{ modelle[model].subscription }}, gültig {{ gueltig }}. Endpoint: {{ maas_url }}/v1"

@@ -27,3 +27,11 @@ aap_catalog_templates:
       - { variable: ns_name, question_name: Name des Namespace, question_description: "Kleinbuchstaben, Ziffern, Bindestriche", type: text, required: true, min: 2, max: 42 }
       - { variable: team, question_name: Team, type: text, required: true, default: demo, min: 2, max: 22 }
       - { variable: target_cluster, question_name: Zielcluster, type: multiplechoice, choices: [portfolio-hub, ocp19, ocp20], default: portfolio-hub, required: true }
+  - name: "Katalog: Model-Endpoint"
+    description: API-Key, URL und Modellname für ein Modell aus Models-as-a-Service (eigenes Granite oder extern Claude Haiku).
+    playbook: ansible/playbooks/catalog-model-endpoint.yml
+    credentials: [cred_hub]
+    execute: [max, agent-claude]
+    survey:
+      - { variable: model, question_name: Modell, type: multiplechoice, choices: [granite, claude-haiku-4-5], default: granite, required: true }
+      - { variable: team, question_name: Team, type: text, required: true, default: demo, min: 2, max: 22 }
