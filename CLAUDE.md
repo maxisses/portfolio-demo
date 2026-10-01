@@ -2,10 +2,11 @@
 
 Stand: 30.09.2026 · Demo-Termin: 02.10.2026 · Build-Start: 30.09.2026, ca. 15:00
 
-Status (01.10.2026, 11:15): Alles gebaut und als Agent getestet: Fundament, ROSA mit GPU (L4),
+Status (01.10.2026, 13:40): Alles gebaut und als Agent getestet: Fundament, ROSA mit GPU (L4),
 AAP mit MCP, Portal, GitOps-Plattform, Flotte (ocp19, ocp20, Localnews, Policies), RHOAI 3.5 mit
-MaaS (Granite selbst gehostet; Claude Haiku, Sonnet, Opus und GPT-6 Luna extern), alle vier
-Katalog-Items plus Aufräumen, Demo-Agent über MCP. Offen: Demo-Skript, Generalprobe.
+MaaS (Granite selbst gehostet; Claude Haiku, Sonnet, Opus und GPT-6 Luna extern), Katalog-Items
+plus Aufräumen, Demo-Agent über MCP. Alles in der Demo Sichtbare ist englisch (D47). Offen:
+Operator-Persona testen (Trockenlauf), Fine-Tuning-Notebook, Demo-Skript, Generalprobe.
 Details in `docs/build-journal.md`.
 
 Dieses Dokument ist Spezifikation und Arbeitsanweisung für Agenten zugleich. Die Umgebung wird
@@ -503,6 +504,9 @@ Alle Entscheidungen sind mit Max abgestimmt (Interview in fünf Runden am 30.09.
 | D43 | Agent-MCP: AAP `/mcp/job_management` mit Token von `agent-claude`; OpenShift über `kubernetes-mcp-server --read-only --cluster-provider kubeconfig`, Edge über den ACM-Cluster-Proxy mit ManagedServiceAccounts | Kein VPN nötig; Agent sieht per RBAC nur Katalog-Templates |
 | D45 | GPU-Pool g6.2xlarge (NVIDIA L4, 24 GB) statt g6e.xlarge; Granite 4.0 H-Tiny FP8 passt mit Luft | AWS meldete InsufficientInstanceCapacity für g6e.xlarge in eu-central-1a |
 | D44 | Portal per Helm-Chart `redhat-rhaap-portal` 2.2.10 (OCI-Plugins aus registry.redhat.io), Host `portal.apps.rosa.portfolio-hub...` | Offizieller Weg auf OpenShift |
+| D46 | Demo in drei Personas statt Szenen: Developer (Localnews mit MaaS und DBaaS über den Katalog), Platform Operator (Edge-Upgrades orchestrieren, neue Compliance-Vorgabe per Policy), ML Engineer (Fine-Tuning im Notebook, ohne Deploy). Je Persona erst der Ablauf, dann das Architekturbild | Abstimmung mit Max am 01.10. |
+| D47 | Alles, was in der Demo sichtbar ist, auf Englisch: Katalog, Surveys, Job-Ausgaben, Commit-Nachrichten von AAP, generiertes YAML, Policies und Banner, MaaS-Namen, Notebooks, Agent-Persona. Bauanleitung, Build-Journal und interne Notizen bleiben deutsch | Wunsch von Max |
+| D48 | Portal synchronisiert die Organisation "Portfolio Demo" alle 5 Minuten; Workflows (Datenbank, Edge-Upgrade) erscheinen dort nicht, nur Job-Templates. Workflows bestellt der Agent über MCP oder ein Mensch in AAP | Verhalten des Portal-Plugins 2.2.10 |
 | D39 | MaaS nach der Referenz `rh-aiservices-bu/rhoai-maas-guide`: Gateway `maas-default-gateway` mit ROSA-Wildcard-Zertifikat, PostgreSQL im Cluster, Passwort aus Secrets Manager über ESO | In 3.5 liegt MaaS unter `aigateway.modelsAsAService` |
 
 ## 10. Offene Punkte (klären wir beim Bau)
