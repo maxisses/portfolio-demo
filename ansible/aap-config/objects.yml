@@ -33,7 +33,7 @@ aap_catalog_templates:
     credentials: [cred_hub]
     execute: [max, agent-claude]
     survey:
-      - { variable: model, question_name: Modell, type: multiplechoice, choices: [granite, claude-haiku-4-5], default: granite, required: true }
+      - { variable: model, question_name: Modell, type: multiplechoice, choices: [granite, claude-haiku-4-5, claude-sonnet-5-5, claude-opus-5-5, gpt-6-luna], default: granite, required: true }
       - { variable: team, question_name: Team, type: text, required: true, default: demo, min: 2, max: 22 }
   - name: "Katalog: AI-Namespace"
     description: Data-Science-Projekt auf OpenShift AI mit Workbench, Beispiel-Notebooks und vorverdrahtetem Zugang zu Models-as-a-Service.

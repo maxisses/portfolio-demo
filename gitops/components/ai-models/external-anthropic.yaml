@@ -71,3 +71,55 @@ spec:
   modelRef:
     kind: ExternalModel
     name: claude-haiku-4-5
+---
+apiVersion: inference.opendatahub.io/v1alpha1
+kind: ExternalModel
+metadata:
+  name: claude-sonnet-5-5
+  namespace: external-models
+spec:
+  modelName: claude-sonnet-5-5
+  externalProviderRefs:
+    - ref:
+        name: anthropic
+      targetModel: claude-sonnet-5-5
+      apiFormat: openai-chat
+      path: /v1/messages
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: claude-sonnet-5-5
+  namespace: external-models
+  annotations:
+    openshift.io/display-name: "Claude Sonnet 5.5 (extern, Anthropic)"
+spec:
+  modelRef:
+    kind: ExternalModel
+    name: claude-sonnet-5-5
+---
+apiVersion: inference.opendatahub.io/v1alpha1
+kind: ExternalModel
+metadata:
+  name: claude-opus-5-5
+  namespace: external-models
+spec:
+  modelName: claude-opus-5-5
+  externalProviderRefs:
+    - ref:
+        name: anthropic
+      targetModel: claude-opus-5-5
+      apiFormat: openai-chat
+      path: /v1/messages
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: claude-opus-5-5
+  namespace: external-models
+  annotations:
+    openshift.io/display-name: "Claude Opus 5.5 (extern, Anthropic)"
+spec:
+  modelRef:
+    kind: ExternalModel
+    name: claude-opus-5-5

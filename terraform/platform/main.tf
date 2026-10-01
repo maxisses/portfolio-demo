@@ -97,3 +97,21 @@ resource "aws_secretsmanager_secret_version" "anthropic" {
   secret_id     = aws_secretsmanager_secret.anthropic.id
   secret_string = jsonencode({ "api-key" = var.anthropic_api_key })
 }
+
+# OpenAI-Key für ein weiteres externes Modell hinter MaaS (TF_VAR_openai_api_key aus .env).
+variable "openai_api_key" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+resource "aws_secretsmanager_secret" "openai" {
+  name                    = "portfolio-demo/openai"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "openai" {
+  count         = var.openai_api_key != "" ? 1 : 0
+  secret_id     = aws_secretsmanager_secret.openai.id
+  secret_string = jsonencode({ "api-key" = var.openai_api_key })
+}

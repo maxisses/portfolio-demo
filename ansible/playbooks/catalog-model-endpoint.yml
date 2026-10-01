@@ -13,6 +13,9 @@
     modelle:
       granite: { id: granite, subscription: standard, beschreibung: "selbst gehostet auf OpenShift AI (llm-d, GPU)" }
       claude-haiku-4-5: { id: claude-haiku-4-5, subscription: premium, beschreibung: "extern über die Anthropic-API (Technology Preview)" }
+      claude-sonnet-5-5: { id: claude-sonnet-5-5, subscription: premium, beschreibung: "extern über die Anthropic-API (Technology Preview)" }
+      claude-opus-5-5: { id: claude-opus-5-5, subscription: premium, beschreibung: "extern über die Anthropic-API (Technology Preview)" }
+      gpt-6-luna: { id: gpt-6-luna, subscription: premium, beschreibung: "extern über die OpenAI-API (Technology Preview)" }
     requester: "{{ tower_user_name | default('lokal') }}"
     channel: "{{ 'agent' if requester is match('^agent-') else 'portal' }}"
     request_id: "{{ tower_job_id | default('lokal') }}"

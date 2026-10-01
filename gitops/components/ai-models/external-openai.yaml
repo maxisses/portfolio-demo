@@ -1,0 +1,63 @@
+# Externes Modell von OpenAI hinter MaaS (Technology Preview): gleiche API, anderer Anbieter.
+# Der Key kommt aus AWS Secrets Manager (portfolio-demo/openai, terraform/platform).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: openai-api-key
+  namespace: external-models
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: openai-api-key
+    template:
+      metadata:
+        labels:
+          inference.llm-d.ai/ipp-managed: "true"
+          inference.networking.k8s.io/bbr-managed: "true"
+  data:
+    - secretKey: api-key
+      remoteRef:
+        key: portfolio-demo/openai
+        property: api-key
+---
+apiVersion: inference.opendatahub.io/v1alpha1
+kind: ExternalProvider
+metadata:
+  name: openai
+  namespace: external-models
+spec:
+  provider: openai
+  endpoint: api.openai.com
+  auth:
+    type: apikey
+    secretRef:
+      name: openai-api-key
+---
+apiVersion: inference.opendatahub.io/v1alpha1
+kind: ExternalModel
+metadata:
+  name: gpt-6-luna
+  namespace: external-models
+spec:
+  modelName: gpt-6-luna
+  externalProviderRefs:
+    - ref:
+        name: openai
+      targetModel: gpt-6-luna
+      apiFormat: openai-chat
+      path: /v1/chat/completions
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: gpt-6-luna
+  namespace: external-models
+  annotations:
+    openshift.io/display-name: "GPT-6 Luna (extern, OpenAI)"
+spec:
+  modelRef:
+    kind: ExternalModel
+    name: gpt-6-luna

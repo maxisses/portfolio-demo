@@ -46,6 +46,21 @@ spec:
       tokenRateLimits:
         - limit: 20000
           window: 1h
+    - name: claude-sonnet-5-5
+      namespace: external-models
+      tokenRateLimits:
+        - limit: 10000
+          window: 1h
+    - name: claude-opus-5-5
+      namespace: external-models
+      tokenRateLimits:
+        - limit: 5000
+          window: 1h
+    - name: gpt-6-luna
+      namespace: external-models
+      tokenRateLimits:
+        - limit: 10000
+          window: 1h
   priority: 20
 ---
 apiVersion: maas.opendatahub.io/v1alpha1
@@ -58,6 +73,12 @@ metadata:
 spec:
   modelRefs:
     - name: claude-haiku-4-5
+      namespace: external-models
+    - name: claude-sonnet-5-5
+      namespace: external-models
+    - name: claude-opus-5-5
+      namespace: external-models
+    - name: gpt-6-luna
       namespace: external-models
   subjects:
     groups:
