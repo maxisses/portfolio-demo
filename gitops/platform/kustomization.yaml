@@ -12,6 +12,7 @@ resources:
   - fleet.yaml
   - gpu-operator.yaml
   - leader-worker-set.yaml
+  - localnews-build.yaml
   - maas.yaml
   - monitoring.yaml
   - nfd.yaml

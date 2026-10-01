@@ -1,0 +1,50 @@
+# Baut den Location-Extractor mit LLM-Modus (apps/localnews/location-extractor) im Cluster
+# mit OpenShift Builds in die interne Registry. Jede App-Bestellung zieht von hier.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: localnews-build
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: location-extractor
+  namespace: localnews-build
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: location-extractor
+  namespace: localnews-build
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/maxisses/portfolio-demo.git
+      ref: main
+    contextDir: apps/localnews/location-extractor
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: location-extractor:llm
+  triggers:
+    - type: ConfigChange
+---
+# Alle ServiceAccounts im Cluster dürfen die gebauten Images ziehen
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: image-puller-alle
+  namespace: localnews-build
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:image-puller
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:serviceaccounts

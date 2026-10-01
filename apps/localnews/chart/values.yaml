@@ -1,0 +1,74 @@
+# The apps domain of the cluster. Routes are built from it.
+clusterDomain: apps.ocp4.stormshift.coe.muc.redhat.com
+
+imagePullPolicy: Always
+
+# Golden Path der Portfolio-Demo: verwaltete Datenbank und KI aus dem Katalog.
+externalDatabase:
+  enabled: false
+  # Secret mit host, port, dbname, username, password (Katalog-Item "Datenbank")
+  secretName: ""
+
+llm:
+  enabled: false
+  # Secret mit MAAS_BASE_URL, MAAS_API_KEY, MAAS_MODEL (Katalog-Item "App bereitstellen")
+  secretName: maas-zugang
+
+# The component we build ourselves in the Tekton pipeline.
+# The pipeline writes the new tag into this file and pushes it back to git -
+# Argo CD picks the change up and rolls it out. This line is the GitOps demo.
+locationExtractor:
+  name: location-extractor
+  replicaCount: 1
+  image: quay.io/mdargatz/icedemo
+  imageTag: initial
+  version: v1
+  ports:
+    containerPort: 5000
+    servicePort: 8081
+
+newsBackend:
+  name: news-backend
+  replicaCount: 1
+  image: quay.io/k8snativedev/news-backend
+  imageTag: openshift
+  ports:
+    containerPort: 8080
+    servicePort: 8080
+
+newsFrontend:
+  name: news-frontend
+  replicaCount: 1
+  image: quay.io/k8snativedev/news-frontend
+  imageTag: openshift
+  ports:
+    containerPort: 8080
+    servicePort: 80
+
+feedScraper:
+  name: feed-scraper
+  replicaCount: 1
+  image: quay.io/k8snativedev/feed-scraper
+  imageTag: openshift
+  # Feeds are picked for two reasons. They have to be alive - the BBC feed the
+  # book used only answers over https now, and the CNBC one is gone - and their
+  # article links have to fit the backend's varchar(256) column. Times of India
+  # links run to 292 characters and blow the insert up.
+  feedsUrl: >-
+    https://feeds.bbci.co.uk/news/world/rss.xml,
+    https://www.aljazeera.com/xml/rss/all.xml,
+    https://www.theguardian.com/world/rss,
+    https://rss.dw.com/rdf/rss-en-world,
+    https://www.france24.com/en/rss
+
+# No Red Hat image ships the PostGIS extension, so we pin the upstream one.
+postgis:
+  name: postgis
+  image: postgis/postgis
+  imageTag: "15-3.4"
+  database: news
+  user: postgres
+  password: banane
+  ports:
+    containerPort: 5432
+    servicePort: 5400

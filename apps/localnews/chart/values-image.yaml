@@ -1,0 +1,6 @@
+# This file is owned by the Tekton pipeline.
+# Every successful build rewrites it and pushes it back to Git.
+# Argo CD watches the repo and rolls the new tag out - that is the
+# whole GitOps loop in five lines of YAML.
+locationExtractor:
+  imageTag: 277b50c

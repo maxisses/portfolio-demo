@@ -1,0 +1,12 @@
+# Location-Extractor mit optionaler LLM-Ortserkennung über Models-as-a-Service.
+# Basis ist das Abhängigkeits-Image aus dem ice-demo-Projekt (spaCy und Sprachmodell).
+FROM quay.io/mdargatz/icedemo:base
+
+WORKDIR /opt/app-root/src
+
+COPY --chown=1001:0 src/ /opt/app-root/src/src/
+
+USER 1001
+EXPOSE 5000
+
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "src.wsgi:app"]

@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.newsBackend.name }}
+  labels:
+    app: {{ .Values.newsBackend.name }}
+    app.openshift.io/runtime: quarkus
+    {{- include "localnews.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.newsBackend.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.newsBackend.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.newsBackend.name }}
+    spec:
+      containers:
+        - name: {{ .Values.newsBackend.name }}
+          image: {{ .Values.newsBackend.image }}:{{ .Values.newsBackend.imageTag }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.newsBackend.ports.containerPort }}
+          env:
+            - name: backend.nlp.url
+              value: http://{{ .Values.locationExtractor.name }}:{{ .Values.locationExtractor.ports.servicePort }}/get_loc
+            {{- if .Values.externalDatabase.enabled }}
+            # Verwaltete Datenbank aus dem Katalog (Amazon RDS); Werte aus dem Secret
+            {{- range $env, $key := dict "DB_HOST" "host" "DB_PORT" "port" "DB_NAME" "dbname" "DB_USER" "username" "DB_PASSWORD" "password" }}
+            - name: {{ $env }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.externalDatabase.secretName }}
+                  key: {{ $key }}
+            {{- end }}
+            - name: quarkus.datasource.jdbc.url
+              value: jdbc:postgresql://$(DB_HOST):$(DB_PORT)/$(DB_NAME)?user=$(DB_USER)&password=$(DB_PASSWORD)&sslmode=require
+            {{- else }}
+            - name: quarkus.datasource.jdbc.url
+              value: jdbc:postgresql://{{ .Values.postgis.name }}:{{ .Values.postgis.ports.servicePort }}/{{ .Values.postgis.database }}?user={{ .Values.postgis.user }}&password={{ .Values.postgis.password }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: {{ .Values.newsBackend.ports.containerPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.newsBackend.name }}
+  labels:
+    app: {{ .Values.newsBackend.name }}
+    {{- include "localnews.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: {{ .Values.newsBackend.name }}
+  ports:
+    - name: http
+      port: {{ .Values.newsBackend.ports.servicePort }}
+      targetPort: {{ .Values.newsBackend.ports.containerPort }}
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ .Values.newsBackend.name }}
+  labels:
+    app: {{ .Values.newsBackend.name }}
+    {{- include "localnews.labels" . | nindent 4 }}
+spec:
+  host: {{ .Values.newsBackend.name }}-{{ .Release.Namespace }}.{{ .Values.clusterDomain }}
+  to:
+    kind: Service
+    name: {{ .Values.newsBackend.name }}
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

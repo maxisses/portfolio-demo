@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.feedScraper.name }}
+  labels:
+    app: {{ .Values.feedScraper.name }}
+    app.openshift.io/runtime: quarkus
+    {{- include "localnews.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.feedScraper.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.feedScraper.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.feedScraper.name }}
+    spec:
+      containers:
+        - name: {{ .Values.feedScraper.name }}
+          image: {{ .Values.feedScraper.image }}:{{ .Values.feedScraper.imageTag }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          env:
+            - name: SCRAPER_FEEDS_URL
+              value: {{ .Values.feedScraper.feedsUrl | quote }}
+            - name: SCRAPER_FEED_BACKEND_HOST
+              value: {{ .Values.newsBackend.name }}
