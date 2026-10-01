@@ -1,0 +1,90 @@
+---
+# Katalog-Item "Datenbank": AAP ruft Terraform (cloud.terraform, eigenes EE) für eine
+# RDS-PostgreSQL auf, Zugangsdaten nach Secrets Manager, ExternalSecret per Git in den
+# Ziel-Namespace. Läuft im Workflow erst nach Freigabe (kostet Geld).
+- name: Datenbank bereitstellen
+  hosts: localhost
+  gather_facts: false
+  vars:
+    db_name: ""
+    groesse: klein
+    namespace: ""
+    gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
+    gitops_repo_web: https://github.com/maxisses/portfolio-demo
+    gitops_workdir: "/tmp/gitops-{{ tower_job_id | default('local') }}"
+    requester: "{{ tower_user_name | default('lokal') }}"
+    channel: "{{ 'agent' if (awx_workflow_job_launched_by_name | default(requester)) is match('^agent-') else 'portal' }}"
+    request_id: "{{ tower_workflow_job_id | default(tower_job_id) | default('lokal') }}"
+    secret_name: "portfolio-demo/dbaas/{{ db_name }}"
+  tasks:
+    - name: Eingaben prüfen
+      ansible.builtin.assert:
+        that:
+          - db_name is match('^[a-z][a-z0-9-]{1,30}$')
+          - groesse in ['klein', 'mittel']
+          - namespace is match('^[a-z0-9]([-a-z0-9]{0,40}[a-z0-9])?$')
+        fail_msg: "Name: Kleinbuchstaben/Ziffern/Bindestriche; Größe: klein oder mittel; Ziel-Namespace angeben"
+
+    - name: Ziel-Namespace muss auf dem Hub existieren
+      kubernetes.core.k8s_info:
+        kind: Namespace
+        name: "{{ namespace }}"
+      register: ns
+      failed_when: ns.resources | length == 0
+
+    - name: "terraform apply: RDS PostgreSQL {{ db_name }} ({{ groesse }})"
+      cloud.terraform.terraform:
+        project_path: "{{ playbook_dir }}/../../terraform/modules/dbaas"
+        binary_path: /usr/local/bin/terraform
+        state: present
+        force_init: true
+        backend_config_files:
+          - "{{ lookup('ansible.builtin.env', 'TF_BACKEND_CONFIG_FILE') }}"
+        backend_config:
+          key: "dbaas/{{ db_name }}.tfstate"
+        variables:
+          name: "{{ db_name }}"
+          groesse: "{{ groesse }}"
+          namespace: "{{ namespace }}"
+          requester: "{{ awx_workflow_job_launched_by_name | default(requester) }}"
+      register: tf
+
+    - name: Zeitstempel
+      ansible.builtin.set_fact:
+        now_utc: "{{ lookup('ansible.builtin.pipe', 'date -u +%Y-%m-%dT%H:%MZ') }}"
+
+    - name: ExternalSecret nach Git committen
+      ansible.builtin.include_tasks: tasks/gitops-commit.yml
+      vars:
+        commit:
+          message: "Datenbank {{ db_name }} für Namespace {{ namespace }} (bestellt via {{ channel }}, AAP-Workflow {{ request_id }})"
+          files:
+            - path: "gitops/tenants/portfolio-hub/{{ namespace }}-db-{{ db_name }}.yaml"
+              content: "{{ lookup('ansible.builtin.template', '../templates/tenant-dbaas.yaml.j2') }}"
+
+    - name: Warten, bis Argo CD den Commit ausgerollt hat
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: openshift-gitops
+        name: tenants-portfolio-hub
+      register: app
+      until: >-
+        app.resources | length > 0 and
+        app.resources[0].status.sync.revision | default('') == commit_sha and
+        app.resources[0].status.sync.status | default('') == 'Synced'
+      retries: 40
+      delay: 15
+
+    - name: Ergebnis für Portal und Agent
+      ansible.builtin.set_stats:
+        data:
+          datenbank: "{{ db_name }}"
+          endpoint: "{{ tf.outputs.endpoint.value }}"
+          namespace: "{{ namespace }}"
+          secret: "db-{{ db_name }} (Schlüssel host, port, dbname, username, password, uri)"
+          git_commit: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
+
+    - name: Zusammenfassung
+      ansible.builtin.debug:
+        msg: "PostgreSQL {{ db_name }} steht ({{ tf.outputs.endpoint.value }}); Secret db-{{ db_name }} in {{ namespace }}."

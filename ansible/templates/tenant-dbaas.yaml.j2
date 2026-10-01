@@ -1,0 +1,22 @@
+# Erzeugt von AAP (Katalog-Item "Datenbank"). Nicht von Hand ändern.
+# Bestellt von {{ requester }} über {{ channel }}, AAP-Job {{ request_id }}, {{ now_utc }}
+# Zugangsdaten liegen in AWS Secrets Manager ({{ secret_name }}); hier steht nur der Verweis.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: db-{{ db_name }}
+  namespace: {{ namespace }}
+  labels:
+    portfolio-demo/managed-by: aap
+    portfolio-demo/ordered-by: {{ channel }}
+    portfolio-demo/request-id: "{{ request_id }}"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: db-{{ db_name }}
+  dataFrom:
+    - extract:
+        key: {{ secret_name }}

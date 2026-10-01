@@ -1,0 +1,150 @@
+---
+# Workflow mit Freigabe: internes Job-Template, Workflow mit Survey, Knoten
+# "Freigabe -> Ausführung", Execute-Recht für die Besteller.
+- name: "Internes Job-Template {{ wf.job_template.name }}"
+  ansible.builtin.include_tasks: aap-ensure.yml
+  vars:
+    ensure:
+      key: "wfjt_inner"
+      api: controller
+      endpoint: job_templates
+      query: "name={{ wf.job_template.name | urlencode }}"
+      body:
+        name: "{{ wf.job_template.name }}"
+        description: "{{ wf.job_template.description }}"
+        organization: "{{ aap_ids.org }}"
+        project: "{{ aap_ids.project }}"
+        playbook: "{{ wf.job_template.playbook }}"
+        inventory: "{{ aap_ids.inv }}"
+        execution_environment: "{{ aap_ids.ee }}"
+        ask_variables_on_launch: true
+
+- name: Credentials an das interne Template
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/job_templates/{{ aap_ids.wfjt_inner }}/credentials/"
+    method: POST
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body: { id: "{{ aap_ids[item] }}" }
+    status_code: [204, 400]
+  loop: "{{ wf.job_template.credentials }}"
+  changed_when: false
+
+- name: "Workflow {{ wf.name }}"
+  ansible.builtin.include_tasks: aap-ensure.yml
+  vars:
+    ensure:
+      key: "wf_outer"
+      api: controller
+      endpoint: workflow_job_templates
+      query: "name={{ wf.name | urlencode }}"
+      body:
+        name: "{{ wf.name }}"
+        description: "{{ wf.description }}"
+        organization: "{{ aap_ids.org }}"
+        survey_enabled: true
+
+- name: Survey des Workflows
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/workflow_job_templates/{{ aap_ids.wf_outer }}/survey_spec/"
+    method: POST
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body: { name: "{{ wf.name }}", description: "{{ wf.description }}", spec: "{{ wf.survey }}" }
+    status_code: [200, 201]
+  changed_when: false
+
+- name: Vorhandene Knoten
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/workflow_job_templates/{{ aap_ids.wf_outer }}/workflow_nodes/"
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+  register: _nodes
+
+- name: Knoten anlegen (nur wenn der Workflow noch leer ist)
+  when: _nodes.json.count == 0
+  block:
+    - name: Knoten Freigabe
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_templates/{{ aap_ids.wf_outer }}/workflow_nodes/"
+        method: POST
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+        body_format: json
+        body: { identifier: freigabe }
+        status_code: [201]
+      register: _n_appr
+
+    - name: Freigabe-Vorlage am Knoten
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/{{ _n_appr.json.id }}/create_approval_template/"
+        method: POST
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+        body_format: json
+        body: "{{ wf.approval }}"
+        status_code: [200, 201]
+
+    - name: Knoten Ausführung
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_templates/{{ aap_ids.wf_outer }}/workflow_nodes/"
+        method: POST
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+        body_format: json
+        body: { identifier: ausfuehrung, unified_job_template: "{{ aap_ids.wfjt_inner }}" }
+        status_code: [201]
+      register: _n_run
+
+    - name: Freigabe -> Ausführung
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/{{ _n_appr.json.id }}/success_nodes/"
+        method: POST
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+        body_format: json
+        body: { id: "{{ _n_run.json.id }}" }
+        status_code: [204]
+
+- name: Rollen-Definition "WorkflowJobTemplate Execute"
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/role_definitions/?name={{ 'WorkflowJobTemplate Execute' | urlencode }}"
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+  register: _rdw
+
+- name: Controller-IDs der Besteller
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/users/?username={{ item }}"
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+  loop: "{{ wf.execute }}"
+  register: _wusers
+
+- name: Execute-Recht auf den Workflow
+  ansible.builtin.uri:
+    url: "{{ aap_url }}/api/controller/v2/role_user_assignments/"
+    method: POST
+    user: admin
+    password: "{{ aap_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      role_definition: "{{ _rdw.json.results[0].id }}"
+      user: "{{ item.json.results[0].id }}"
+      object_id: "{{ aap_ids.wf_outer | string }}"
+    status_code: [200, 201, 400]
+  loop: "{{ _wusers.results }}"
+  loop_control: { label: "{{ item.item }}" }
+  changed_when: false

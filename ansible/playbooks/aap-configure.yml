@@ -227,6 +227,11 @@
       loop: "{{ aap_catalog_templates }}"
       loop_control: { loop_var: jt, label: "{{ jt.name }}" }
 
+    - name: Katalog-Workflows mit Freigabe
+      ansible.builtin.include_tasks: tasks/aap-catalog-workflow.yml
+      loop: "{{ aap_catalog_workflows | default([]) }}"
+      loop_control: { loop_var: wf, label: "{{ wf.name }}" }
+
     - name: Übersicht
       ansible.builtin.debug:
         var: aap_ids

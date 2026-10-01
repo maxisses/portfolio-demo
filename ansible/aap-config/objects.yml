@@ -35,3 +35,20 @@ aap_catalog_templates:
     survey:
       - { variable: model, question_name: Modell, type: multiplechoice, choices: [granite, claude-haiku-4-5], default: granite, required: true }
       - { variable: team, question_name: Team, type: text, required: true, default: demo, min: 2, max: 22 }
+
+# Workflows mit Freigabe: Der Besteller sieht nur den Workflow; das ausführende Template
+# ist intern (nicht im Katalog), freigeben kann der Admin.
+aap_catalog_workflows:
+  - name: "Katalog: Datenbank"
+    description: PostgreSQL (Amazon RDS) für einen Namespace auf dem Hub. Kostet Geld, deshalb mit Freigabe. AAP ruft dafür Terraform auf.
+    approval: { name: "Freigabe: Datenbank (kostenpflichtig)", description: "RDS-Instanz in AWS, wird pro Stunde abgerechnet", timeout: 0 }
+    job_template:
+      name: "Datenbank (Ausführung, intern)"
+      description: Terraform-Lauf für das Katalog-Item Datenbank; wird nur aus dem Workflow gestartet.
+      playbook: ansible/playbooks/catalog-dbaas.yml
+      credentials: [cred_deploykey, cred_hub, cred_tfstate]
+    execute: [max, agent-claude]
+    survey:
+      - { variable: db_name, question_name: Name der Datenbank, type: text, required: true, min: 2, max: 31 }
+      - { variable: groesse, question_name: Größe, type: multiplechoice, choices: [klein, mittel], default: klein, required: true }
+      - { variable: namespace, question_name: Ziel-Namespace (auf portfolio-hub), type: text, required: true, min: 2, max: 42 }

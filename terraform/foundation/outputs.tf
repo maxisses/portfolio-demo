@@ -33,3 +33,7 @@ output "aap_ami" {
 output "state_bucket" {
   value = local.state_bucket
 }
+
+output "database_subnet_group" {
+  value = module.vpc.database_subnet_group_name
+}
