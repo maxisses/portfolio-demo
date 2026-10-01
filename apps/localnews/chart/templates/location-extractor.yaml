@@ -33,6 +33,8 @@ spec:
             - secretRef:
                 name: {{ .Values.llm.secretName }}
             {{- end }}
+          resources:
+            {{- toYaml .Values.locationExtractor.resources | nindent 12 }}
           readinessProbe:
             httpGet:
               path: /healthz

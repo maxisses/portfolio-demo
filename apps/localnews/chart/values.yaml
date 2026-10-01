@@ -23,6 +23,11 @@ locationExtractor:
   image: quay.io/mdargatz/icedemo
   imageTag: initial
   version: v1
+  # spaCy mit Sprachmodell in zwei Gunicorn-Workern braucht mehr als die 512 Mi,
+  # die eine Namespace-LimitRange typischerweise als Standard setzt.
+  resources:
+    requests: { cpu: 200m, memory: 512Mi }
+    limits: { cpu: "1", memory: 1536Mi }
   ports:
     containerPort: 5000
     servicePort: 8081
