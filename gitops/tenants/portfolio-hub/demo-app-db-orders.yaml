@@ -1,0 +1,22 @@
+# Erzeugt von AAP (Katalog-Item "Datenbank"). Nicht von Hand ändern.
+# Bestellt von agent-claude über agent, AAP-Job 28, 2026-10-01T06:41Z
+# Zugangsdaten liegen in AWS Secrets Manager (portfolio-demo/dbaas/orders); hier steht nur der Verweis.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: db-orders
+  namespace: demo-app
+  labels:
+    portfolio-demo/managed-by: aap
+    portfolio-demo/ordered-by: agent
+    portfolio-demo/request-id: "28"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: db-orders
+  dataFrom:
+    - extract:
+        key: portfolio-demo/dbaas/orders
