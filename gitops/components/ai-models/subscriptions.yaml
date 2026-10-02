@@ -1,5 +1,5 @@
 # Tiers (internal name -> label): standard -> "Local" (self-hosted only),
-# premium -> "Local + public" (self-hosted plus external models).
+# premium -> "Public" (external models only).
 # Owner is every authenticated identity; the tier is set by the API key that the catalog item
 # "Model Endpoint" issues for a subscription.
 apiVersion: maas.opendatahub.io/v1alpha1
@@ -29,19 +29,14 @@ metadata:
   name: premium
   namespace: models-as-a-service
   annotations:
-    openshift.io/display-name: "Local + public"
-    openshift.io/description: "Self-hosted and public models; public tokens cost money and leave the platform"
+    openshift.io/display-name: "Public"
+    openshift.io/description: "Public models from external providers; tokens cost money and leave the platform"
 spec:
   owner:
     groups:
       - name: system:authenticated
     users: []
   modelRefs:
-    - name: granite
-      namespace: ai-engineering
-      tokenRateLimits:
-        - limit: 100000
-          window: 1m
     - name: claude-haiku-4-5
       namespace: external-models
       tokenRateLimits:

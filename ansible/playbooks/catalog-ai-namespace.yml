@@ -50,14 +50,14 @@
       ansible.builtin.set_fact:
         workbench_image: "{{ (is.resources[0].status.tags | selectattr('tag', 'equalto', '3.5') | first)['items'][0].dockerImageReference }}"
 
-    - name: Issue a MaaS key for the namespace (tier "Local + public")
+    - name: Issue a MaaS key for the namespace (tier "Local": the data stays on the platform)
       ansible.builtin.uri:
         url: "{{ maas_url }}/maas-api/v1/api-keys"
         method: POST
         headers:
           Authorization: "Bearer {{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY') }}"
         body_format: json
-        body: { name: "ai-ns-{{ ns_name }}-{{ request_id }}", subscription: premium, expiresIn: 30d }
+        body: { name: "ai-ns-{{ ns_name }}-{{ request_id }}", subscription: standard, expiresIn: 30d }
         status_code: [200, 201]
       register: key
       no_log: true
@@ -109,6 +109,6 @@
           dashboard: "{{ rhoai_url }}/projects/{{ ns_name }}"
           workbench: "{{ rhoai_url }}/notebook/{{ ns_name }}/workbench"
           hardware: "{{ 'NVIDIA L4 GPU, PyTorch (CUDA); the GPU node may take a few minutes to start' if gpu_enabled | bool else 'CPU, Jupyter Data Science' }}"
-          maas: "Key is available as secret maas-access in the namespace (tier Local + public)"
+          maas: "Key is available as secret maas-access in the namespace (tier Local)"
           git_commit: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
           ordered_by: "{{ requester }} via {{ channel }}"

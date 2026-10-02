@@ -1,13 +1,13 @@
 ---
 # Catalog item "Model Endpoint": issues an API key for a model through the MaaS API.
 # The identity is AAP's service account on the hub (credential "Hub-API"); the subscription
-# defines tier and token limit (standard = own model, premium = external models as well).
+# defines tier and token limit (standard = self-hosted models, premium = external models).
 - name: Order a model endpoint
   hosts: localhost
   gather_facts: false
   vars:
     model: granite
-    tier_labels: { standard: "Local", premium: "Local + public" }
+    tier_labels: { standard: "Local", premium: "Public" }
     team: demo
     valid_for: 7d
     maas_url: https://maas.apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com
