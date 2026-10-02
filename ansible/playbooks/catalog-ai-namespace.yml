@@ -50,7 +50,7 @@
       ansible.builtin.set_fact:
         workbench_image: "{{ (is.resources[0].status.tags | selectattr('tag', 'equalto', '3.5') | first)['items'][0].dockerImageReference }}"
 
-    - name: Issue a MaaS key for the namespace (tier "Local": the data stays on the platform)
+    - name: Issue a MaaS key for the namespace (tier Local, the data stays on the platform)
       ansible.builtin.uri:
         url: "{{ maas_url }}/maas-api/v1/api-keys"
         method: POST
