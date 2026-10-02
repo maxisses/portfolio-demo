@@ -14,8 +14,8 @@ metadata:
     policy.open-cluster-management.io/categories: FR 1 Identification and authentication control
     policy.open-cluster-management.io/controls: SR 1.12 System use notification
 spec:
-  remediationAction: enforce
-  disabled: false
+  remediationAction: inform
+  disabled: true
   policy-templates:
     - objectDefinition:
         apiVersion: policy.open-cluster-management.io/v1
