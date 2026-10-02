@@ -56,6 +56,31 @@
           body: "{{ item | combine({'password': user_passwords[item.username], 'is_superuser': false}) }}"
 
     # --- Controller: Credential-Typ für Git-Push mit Deploy Key -------------
+    - name: Rollen-Definition "Organization Member"
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/gateway/v1/role_definitions/?name={{ 'Organization Member' | urlencode }}"
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+      register: _rd_member
+
+    - name: Portal-Nutzer werden Mitglied der Organisation (sonst lehnt das Portal die Anmeldung ab)
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/gateway/v1/role_user_assignments/"
+        method: POST
+        user: admin
+        password: "{{ aap_admin_password }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          role_definition: "{{ _rd_member.json.results[0].id }}"
+          user: "{{ aap_ids['user_' ~ item.username] }}"
+          object_id: "{{ aap_ids.org | string }}"
+        status_code: [200, 201, 400]
+      loop: "{{ aap_users | selectattr('portal', 'defined') | selectattr('portal') | list }}"
+      loop_control: { label: "{{ item.username }}" }
+      changed_when: false
+
     - name: Credential-Typ "Git Deploy Key"
       ansible.builtin.include_tasks: tasks/aap-ensure.yml
       vars:

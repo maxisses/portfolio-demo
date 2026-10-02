@@ -12,6 +12,7 @@ aap_users:
   - username: max
     first_name: Max
     last_name: (Demo)
+    portal: true   # member of the organization, so the portal lets the user in
   - username: agent-claude
     first_name: Claude
     last_name: (Agent)
