@@ -16,7 +16,7 @@
     channel: "{{ 'agent' if requester is match('^agent-') else 'portal' }}"
     request_id: "{{ tower_job_id | default('local') }}"
     clusters:
-      portfolio-hub: "https://console-openshift-console.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com"
+      portfolio-hub: "https://console-openshift-console.apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com"
       ocp19: "https://console-openshift-console.apps.ocp19.stormshift.coe.muc.redhat.com"
       ocp20: "https://console-openshift-console.apps.ocp20.stormshift.coe.muc.redhat.com"
   tasks:

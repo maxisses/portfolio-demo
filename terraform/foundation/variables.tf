@@ -55,5 +55,5 @@ variable "aap_rhel_ami_name" {
 variable "rosa_infra_id" {
   description = "Infrastruktur-ID des ROSA-Clusters. ROSA taggt die Subnetze damit; ohne diesen Eintrag würde Terraform den Tag wieder entfernen."
   type        = string
-  default     = "2t5fip3oq4tvcmdl3qjg91j74d7p6raf"
+  default     = "2t6f3noqopu5vieu03rd38invan6davs"
 }

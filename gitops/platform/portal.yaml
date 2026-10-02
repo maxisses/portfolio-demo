@@ -17,8 +17,8 @@ spec:
       valuesObject:
         redhat-developer-hub:
           global:
-            clusterRouterBase: apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
-            host: portal.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+            clusterRouterBase: apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com
+            host: portal.apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com
             pluginMode: oci
             imageTagInfo: "2.2"
           upstream:

@@ -8,7 +8,7 @@
   vars_files:
     - ../aap-config/objects.yml
   vars:
-    portal_host: portal.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+    portal_host: portal.apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com
     secret_aap: portfolio-demo/portal/aap
     secret_registry: portfolio-demo/portal/registry-auth
   tasks:

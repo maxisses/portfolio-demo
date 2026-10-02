@@ -45,7 +45,7 @@ spec:
       name: maas-gateway-options
   listeners:
     - name: http
-      hostname: maas.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+      hostname: maas.apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com
       port: 80
       protocol: HTTP
       allowedRoutes:
@@ -55,7 +55,7 @@ spec:
             matchLabels:
               maas.opendatahub.io/gateway-access: "true"
     - name: https
-      hostname: maas.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+      hostname: maas.apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com
       port: 443
       protocol: HTTPS
       allowedRoutes:
@@ -69,4 +69,4 @@ spec:
         certificateRefs:
           - group: ""
             kind: Secret
-            name: 2t5fip3oq4tvcmdl3qjg91j74d7p6raf-primary-cert-bundle-secret
+            name: 2t6f3noqopu5vieu03rd38invan6davs-primary-cert-bundle-secret

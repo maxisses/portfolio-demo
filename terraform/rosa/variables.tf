@@ -5,7 +5,7 @@ variable "region" {
 
 variable "cluster_name" {
   type    = string
-  default = "portfolio-hub"
+  default = "portfolio-hub2"
 }
 
 variable "openshift_version" {

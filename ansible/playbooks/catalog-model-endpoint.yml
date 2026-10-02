@@ -10,7 +10,7 @@
     tier_labels: { standard: "Local", premium: "Local + public" }
     team: demo
     valid_for: 7d
-    maas_url: https://maas.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+    maas_url: https://maas.apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com
     models:
       granite: { id: "publishers/ai-engineering/models/granite", subscription: standard, description: "self-hosted on OpenShift AI (llm-d, GPU)" }
       claude-haiku-4-5: { id: claude-haiku-4-5, subscription: premium, description: "external via the Anthropic API (Technology Preview)" }

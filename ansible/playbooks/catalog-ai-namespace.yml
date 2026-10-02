@@ -9,8 +9,8 @@
     ns_name: ""
     team: demo
     gpu: "no"
-    maas_url: https://maas.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
-    rhoai_url: https://rh-ai.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+    maas_url: https://maas.apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com
+    rhoai_url: https://rh-ai.apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com
     samples_repo: https://github.com/maxisses/portfolio-demo.git
     gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
     gitops_repo_web: https://github.com/maxisses/portfolio-demo

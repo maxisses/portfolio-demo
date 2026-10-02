@@ -10,8 +10,8 @@
     namespace: ""
     ai: "yes"
     database: ""
-    cluster_domain: apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
-    maas_url: https://maas.apps.rosa.portfolio-hub.vnid.p3.openshiftapps.com
+    cluster_domain: apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com
+    maas_url: https://maas.apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com
     maas_model: publishers/ai-engineering/models/granite
     gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
     gitops_repo_web: https://github.com/maxisses/portfolio-demo
