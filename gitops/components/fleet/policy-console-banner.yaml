@@ -15,7 +15,7 @@ metadata:
     policy.open-cluster-management.io/controls: SR 1.12 System use notification
 spec:
   remediationAction: inform
-  disabled: true
+  disabled: false
   policy-templates:
     - objectDefinition:
         apiVersion: policy.open-cluster-management.io/v1
