@@ -31,7 +31,7 @@ variable "gpu_pool_enabled" {
 }
 
 variable "gpu_instance_type" {
-  description = "L4 (g6) statt L40S (g6e): am 01.10.2026 hatte AWS in eu-central-1a keine g6e-Kapazität"
+  description = "L4 (g6) statt L40S (g6e): am 01.10.2026 keine g6e-Kapazität; g6.xlarge (4 vCPU), weil die neue Sandbox nur 4 vCPU für G-Instanzen erlaubt"
   type        = string
-  default     = "g6.2xlarge"
+  default     = "g6.xlarge"
 }
