@@ -96,7 +96,8 @@
       register: app
       until: >-
         app.resources | length > 0 and
-        app.resources[0].status.sync.revision | default('') == commit_sha and
+        (app.resources[0].status.sync.revision | default('') == commit_sha or
+         app.resources[0].status.operationState.startedAt | default('') > commit_time) and
         app.resources[0].status.sync.status | default('') == 'Synced'
       retries: 40
       delay: 15

@@ -99,7 +99,8 @@
       register: tapp
       until: >-
         tapp.resources | length > 0 and
-        tapp.resources[0].status.sync.revision | default('') == commit_sha
+        t(app.resources[0].status.sync.revision | default('') == commit_sha or
+         app.resources[0].status.operationState.startedAt | default('') > commit_time)
       retries: 40
       delay: 15
 

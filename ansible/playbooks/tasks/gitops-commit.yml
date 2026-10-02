@@ -52,6 +52,9 @@
 - name: Remember the commit
   ansible.builtin.set_fact:
     commit_sha: "{{ _push.stdout_lines | last }}"
+    # Time of the push: any Argo sync that starts later includes this commit, even if other
+    # commits (e.g. compliance reports) landed on top in the meantime.
+    commit_time: "{{ lookup('ansible.builtin.pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
 
 - name: Ask Argo CD to read the repository now (instead of waiting for polling)
   kubernetes.core.k8s:
