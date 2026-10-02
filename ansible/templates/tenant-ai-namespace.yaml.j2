@@ -153,8 +153,8 @@ spec:
               protocol: TCP
           resources:
 {% if gpu_enabled | bool %}
-            requests: { cpu: "2", memory: 12Gi, nvidia.com/gpu: "1" }
-            limits: { cpu: "4", memory: 16Gi, nvidia.com/gpu: "1" }
+            requests: { cpu: "2", memory: 8Gi, nvidia.com/gpu: "1" }
+            limits: { cpu: "3", memory: 11Gi, nvidia.com/gpu: "1" }
 {% else %}
             requests: { cpu: "1", memory: 2Gi }
             limits: { cpu: "2", memory: 4Gi }
