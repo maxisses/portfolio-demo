@@ -16,14 +16,18 @@
         account_id: "{{ lookup('ansible.builtin.pipe', 'aws sts get-caller-identity --query Account --output text') }}"
       no_log: true
 
-    - name: Nutzer-Passwörter lesen oder einmalig erzeugen
+    - name: Nutzer-Passwörter lesen, fehlende einmalig erzeugen
+      # Jeder Nutzer aus aap_users bekommt ein Passwort; vorhandene bleiben unverändert.
       ansible.builtin.shell: |
         set -e
-        if ! aws secretsmanager get-secret-value --secret-id portfolio-demo/aap/users --query SecretString --output text 2>/dev/null; then
-          body=$(python3 -c 'import json,secrets; print(json.dumps({u: secrets.token_urlsafe(15) for u in ["max","agent-claude"]}))')
-          aws secretsmanager create-secret --name portfolio-demo/aap/users --secret-string "$body" >/dev/null
-          echo "$body"
+        old=$(aws secretsmanager get-secret-value --secret-id portfolio-demo/aap/users --query SecretString --output text 2>/dev/null || echo '')
+        new=$(OLD="$old" python3 -c 'import json,os,secrets,sys; d=json.loads(os.environ["OLD"] or "{}"); [d.setdefault(u, secrets.token_urlsafe(15)) for u in sys.argv[1:]]; print(json.dumps(d))' {{ aap_users | map(attribute='username') | join(' ') }})
+        if [ -z "$old" ]; then
+          aws secretsmanager create-secret --name portfolio-demo/aap/users --secret-string "$new" >/dev/null
+        elif [ "$old" != "$new" ]; then
+          aws secretsmanager put-secret-value --secret-id portfolio-demo/aap/users --secret-string "$new" >/dev/null
         fi
+        echo "$new"
       register: _users
       changed_when: false
       no_log: true
