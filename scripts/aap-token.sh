@@ -7,7 +7,7 @@ set -euo pipefail
 user="$1"; secret="$2"; format="${3:-plain}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 LOAD_ENV_QUIET=1 source "$root/scripts/load-env.sh"
-host=https://aap.sandbox3481.opentlc.com
+host=https://aap.sandbox2782.opentlc.com
 pw="$(aws secretsmanager get-secret-value --secret-id portfolio-demo/aap/users --query SecretString --output text | jq -r --arg u "$user" '.[$u]')"
 token="$(curl -sf -u "$user:$pw" -H 'Content-Type: application/json' -d "{\"description\":\"$secret\",\"scope\":\"write\"}" "$host/api/gateway/v1/tokens/" | jq -r .token)"
 [ -n "$token" ] && [ "$token" != null ] || { echo "Token konnte nicht erzeugt werden" >&2; exit 1; }

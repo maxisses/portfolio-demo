@@ -6,7 +6,7 @@
   hosts: localhost
   gather_facts: false
   vars:
-    aap_url: https://aap.sandbox3481.opentlc.com
+    aap_url: https://aap.sandbox2782.opentlc.com
     manifest: "{{ lookup('env', 'AAP_MANIFEST') | expanduser }}"
   tasks:
     - name: Manifest vorhanden?

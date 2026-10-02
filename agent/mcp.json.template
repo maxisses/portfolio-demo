@@ -2,7 +2,7 @@
   "mcpServers": {
     "aap": {
       "type": "http",
-      "url": "https://aap.sandbox3481.opentlc.com:8448/mcp/job_management",
+      "url": "https://aap.sandbox2782.opentlc.com:8448/mcp/job_management",
       "headers": { "Authorization": "Bearer ${AAP_AGENT_TOKEN}" }
     },
     "openshift": {

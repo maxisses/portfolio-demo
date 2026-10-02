@@ -1,7 +1,7 @@
 ---
 # AAP configuration as code (no secrets). Applied by playbooks/aap-configure.yml.
 # Everything here is visible in AAP, the portal and to the agent, so it is in English.
-aap_url: https://aap.sandbox3481.opentlc.com
+aap_url: https://aap.sandbox2782.opentlc.com
 aap_org: Portfolio Demo
 aap_project_repo: https://github.com/maxisses/portfolio-demo.git
 aap_ee_image: quay.io/mdargatz/portfolio-demo-ee:1.1.0

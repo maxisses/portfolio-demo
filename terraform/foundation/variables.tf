@@ -22,7 +22,7 @@ variable "vpc_cidr" {
 variable "dns_zone_name" {
   description = "Öffentliche Route53-Zone der Sandbox"
   type        = string
-  default     = "sandbox3481.opentlc.com"
+  default     = "sandbox2782.opentlc.com"
 }
 
 variable "admin_cidr" {
