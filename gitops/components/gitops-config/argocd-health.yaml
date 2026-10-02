@@ -33,6 +33,8 @@ spec:
           hs.message = obj.status.compliant .. " (details in ACM governance)"
           return hs
         end
-        hs.status = "Progressing"
+        -- No status yet: don't block sync waves. The policy agents on the managed clusters are
+        -- themselves rolled out in a later wave, so waiting here would never end.
+        hs.status = "Healthy"
         hs.message = "Waiting for the compliance status from ACM"
         return hs
