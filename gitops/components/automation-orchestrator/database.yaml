@@ -49,6 +49,9 @@ kind: PersistentVolumeClaim
 metadata:
   name: postgres-data
   namespace: automation-orchestrator-db
+  annotations:
+    # gleiche Welle wie das Deployment: gp3 bindet erst, wenn ein Pod die PVC nutzt
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   accessModes: [ReadWriteOnce]
   resources:
