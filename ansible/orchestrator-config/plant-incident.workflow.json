@@ -1,0 +1,399 @@
+{
+  "schema_version": "2.0.0",
+  "name": "Plant incident: diagnose and fix",
+  "description": "An outage at a plant: Ansible collects evidence, a task agent on our self-hosted Granite finds the cause, a person approves the fix, Ansible reverts the change in Git and checks the plant until it is healthy again.",
+  "triggers": [
+    {
+      "id": "trigger",
+      "name": "Incident reported",
+      "type": "webhook_trigger",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "description": "Reported by ACM through AAP (or by a person or the agent through AAP)",
+      "parameters": {
+        "webhook_path": "plant-incident",
+        "authorized_service_account_ids": [
+          "__SERVICE_ACCOUNT_ID__"
+        ],
+        "input_schema": {
+          "type": "object",
+          "required": [
+            "cluster"
+          ],
+          "properties": {
+            "cluster": {
+              "type": "string"
+            },
+            "plant": {
+              "type": "string"
+            },
+            "policy": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "source": {
+              "type": "string"
+            },
+            "reported_by": {
+              "type": "string"
+            },
+            "aap_job": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "evidence",
+      "name": "Collect evidence",
+      "description": "Plant state from the hub and recent Git changes, read only",
+      "type": "aap_job_template",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "parameters": {
+        "integration_id": "__AAP_INTEGRATION_ID__",
+        "credential_id": "__AAP_CREDENTIAL_ID__",
+        "organization_name": "Portfolio Demo",
+        "job_template_name": "Incident: Collect Evidence",
+        "extra_vars": {
+          "cluster": "${trigger.cluster}"
+        }
+      }
+    },
+    {
+      "id": "diagnose",
+      "name": "Diagnose",
+      "type": "agentic",
+      "position": {
+        "x": 600,
+        "y": 200
+      },
+      "description": "Task agent on self-hosted Granite (Models-as-a-Service), no tools, structured answer",
+      "parameters": {
+        "prompt": "You are the on-call assistant for an OpenShift platform that runs production plants.\nAn outage was reported at ${trigger.plant} (cluster ${trigger.cluster}): ${trigger.message}\n\nEvidence, collected read only by Ansible from the hub:\n${evidence.artifacts.evidence_text}\n\nFind the most likely root cause and recommend one action:\n- \"maintenance\" if an upgrade is in progress on this plant.\n- \"revert_commit\" if one recent Git change explains the outage, for example a new rule that blocks traffic inside the plant app. Put the full commit SHA of that change into suspected_commit.\n- \"escalate\" in every other case, with an empty suspected_commit.\nBe short and factual. Do not invent commits that are not in the evidence.",
+        "credential_id": "__LLM_CREDENTIAL_ID__",
+        "llm_model_id": "__LLM_MODEL_ID__",
+        "tool_selection_strategy": "NONE",
+        "responseSchema": {
+          "type": "object",
+          "required": [
+            "root_cause",
+            "recommendation",
+            "suspected_commit",
+            "confidence",
+            "summary"
+          ],
+          "properties": {
+            "root_cause": {
+              "type": "string",
+              "description": "One sentence"
+            },
+            "recommendation": {
+              "type": "string",
+              "enum": [
+                "revert_commit",
+                "escalate",
+                "maintenance"
+              ]
+            },
+            "suspected_commit": {
+              "type": "string",
+              "description": "Full SHA of the change to revert, or empty"
+            },
+            "confidence": {
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "summary": {
+              "type": "string",
+              "description": "Two or three sentences for the on-call engineer"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "route",
+      "name": "What now?",
+      "type": "switch",
+      "position": {
+        "x": 900,
+        "y": 200
+      },
+      "parameters": {
+        "cases": [
+          {
+            "port": "revert",
+            "label": "Revert the change",
+            "condition": "${diagnose.output.recommendation} == \"revert_commit\""
+          },
+          {
+            "port": "maintenance",
+            "label": "Planned maintenance",
+            "condition": "${diagnose.output.recommendation} == \"maintenance\""
+          }
+        ],
+        "default_port": "escalate"
+      }
+    },
+    {
+      "id": "approve",
+      "name": "Approve fix for the plant",
+      "type": "approval",
+      "position": {
+        "x": 1200,
+        "y": 100
+      },
+      "parameters": {
+        "approver_users": [
+          "max",
+          "admin"
+        ],
+        "prompt": "Outage at ${trigger.plant} (${trigger.cluster}): ${trigger.message}\n\nDiagnosis by the task agent (self-hosted Granite, confidence ${diagnose.output.confidence}):\n${diagnose.output.summary}\n\nRoot cause: ${diagnose.output.root_cause}\nProposed fix: revert commit ${diagnose.output.suspected_commit} in Git. Ansible makes the change, the plant pulls it.\n\nApprove to fix the plant now, reject to leave it for the day shift.",
+        "decision_window": 7200,
+        "fallback_decision": "reject"
+      },
+      "settings": {
+        "continue_on_failure": true
+      }
+    },
+    {
+      "id": "revert",
+      "name": "Revert the change",
+      "description": "git revert, only recent changes to fleet rules or plant tenants",
+      "type": "aap_job_template",
+      "position": {
+        "x": 1500,
+        "y": 0
+      },
+      "parameters": {
+        "integration_id": "__AAP_INTEGRATION_ID__",
+        "credential_id": "__AAP_CREDENTIAL_ID__",
+        "organization_name": "Portfolio Demo",
+        "job_template_name": "Operations: Revert Change",
+        "extra_vars": {
+          "commit_sha": "${diagnose.output.suspected_commit}",
+          "approved_by": "${approve.decided_by}",
+          "execution_id": "${workflow_context.execution.id}",
+          "cluster": "${trigger.cluster}",
+          "reason": "${diagnose.output.root_cause}"
+        }
+      }
+    },
+    {
+      "id": "verify",
+      "name": "Until the plant is healthy",
+      "type": "loop",
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
+      "parameters": {
+        "type": "do_while",
+        "condition": "${health.artifacts.state} != \"Compliant\"",
+        "max_iterations": 10
+      },
+      "settings": {
+        "continue_on_failure": true
+      }
+    },
+    {
+      "id": "pause",
+      "name": "Wait 30 s",
+      "type": "wait",
+      "position": {
+        "x": 1800,
+        "y": -200
+      },
+      "parameters": {
+        "duration": 30
+      }
+    },
+    {
+      "id": "health",
+      "name": "Plant health check",
+      "description": "Is plant-app-health compliant again?",
+      "type": "aap_job_template",
+      "position": {
+        "x": 2100,
+        "y": -200
+      },
+      "parameters": {
+        "integration_id": "__AAP_INTEGRATION_ID__",
+        "credential_id": "__AAP_CREDENTIAL_ID__",
+        "organization_name": "Portfolio Demo",
+        "job_template_name": "Incident: Plant Health Check",
+        "extra_vars": {
+          "cluster": "${trigger.cluster}"
+        }
+      }
+    },
+    {
+      "id": "record_fixed",
+      "name": "Record: fixed",
+      "description": "Incident report into Git",
+      "type": "aap_job_template",
+      "position": {
+        "x": 2100,
+        "y": 0
+      },
+      "parameters": {
+        "integration_id": "__AAP_INTEGRATION_ID__",
+        "credential_id": "__AAP_CREDENTIAL_ID__",
+        "organization_name": "Portfolio Demo",
+        "job_template_name": "Operations: Record Incident",
+        "extra_vars": {
+          "cluster": "${trigger.cluster}",
+          "outcome": "fixed after approval",
+          "message": "${trigger.message}",
+          "reported_by": "${trigger.reported_by}",
+          "diagnosis": "${diagnose.output.summary}",
+          "root_cause": "${diagnose.output.root_cause}",
+          "suspected_commit": "${diagnose.output.suspected_commit}",
+          "confidence": "${diagnose.output.confidence}",
+          "recommendation": "${diagnose.output.recommendation}",
+          "decision": "${approve.decision}",
+          "decided_by": "${approve.decided_by}",
+          "decision_notes": "${approve.decision_notes}",
+          "revert_url": "${revert.artifacts.revert_url}",
+          "health_checks": "${verify.iteration_count} check(s), last state ${health.artifacts.state}",
+          "execution_id": "${workflow_context.execution.id}"
+        }
+      }
+    },
+    {
+      "id": "record_rejected",
+      "name": "Record: fix rejected",
+      "description": "Incident report into Git",
+      "type": "aap_job_template",
+      "position": {
+        "x": 1500,
+        "y": 250
+      },
+      "parameters": {
+        "integration_id": "__AAP_INTEGRATION_ID__",
+        "credential_id": "__AAP_CREDENTIAL_ID__",
+        "organization_name": "Portfolio Demo",
+        "job_template_name": "Operations: Record Incident",
+        "extra_vars": {
+          "cluster": "${trigger.cluster}",
+          "outcome": "fix not approved",
+          "message": "${trigger.message}",
+          "reported_by": "${trigger.reported_by}",
+          "diagnosis": "${diagnose.output.summary}",
+          "root_cause": "${diagnose.output.root_cause}",
+          "suspected_commit": "${diagnose.output.suspected_commit}",
+          "confidence": "${diagnose.output.confidence}",
+          "recommendation": "${diagnose.output.recommendation}",
+          "decision": "${approve.decision}",
+          "decided_by": "${approve.decided_by}",
+          "decision_notes": "${approve.decision_notes}",
+          "execution_id": "${workflow_context.execution.id}"
+        }
+      }
+    },
+    {
+      "id": "record_open",
+      "name": "Record: escalated",
+      "description": "Incident report into Git, for the day shift",
+      "type": "aap_job_template",
+      "position": {
+        "x": 1200,
+        "y": 400
+      },
+      "parameters": {
+        "integration_id": "__AAP_INTEGRATION_ID__",
+        "credential_id": "__AAP_CREDENTIAL_ID__",
+        "organization_name": "Portfolio Demo",
+        "job_template_name": "Operations: Record Incident",
+        "extra_vars": {
+          "cluster": "${trigger.cluster}",
+          "outcome": "${diagnose.output.recommendation}",
+          "message": "${trigger.message}",
+          "reported_by": "${trigger.reported_by}",
+          "diagnosis": "${diagnose.output.summary}",
+          "root_cause": "${diagnose.output.root_cause}",
+          "suspected_commit": "${diagnose.output.suspected_commit}",
+          "confidence": "${diagnose.output.confidence}",
+          "recommendation": "${diagnose.output.recommendation}",
+          "execution_id": "${workflow_context.execution.id}"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "trigger",
+      "to": "evidence"
+    },
+    {
+      "from": "evidence",
+      "to": "diagnose"
+    },
+    {
+      "from": "diagnose",
+      "to": "route"
+    },
+    {
+      "from": "route",
+      "from_port": "revert",
+      "to": "approve"
+    },
+    {
+      "from": "route",
+      "from_port": "maintenance",
+      "to": "record_open"
+    },
+    {
+      "from": "route",
+      "from_port": "escalate",
+      "to": "record_open"
+    },
+    {
+      "from": "approve",
+      "from_port": "approved",
+      "to": "revert"
+    },
+    {
+      "from": "approve",
+      "from_port": "rejected",
+      "to": "record_rejected"
+    },
+    {
+      "from": "revert",
+      "to": "verify"
+    },
+    {
+      "from": "verify",
+      "from_port": "iterate",
+      "to": "pause"
+    },
+    {
+      "from": "pause",
+      "to": "health"
+    },
+    {
+      "from": "health",
+      "to": "verify",
+      "to_port": "iterate"
+    },
+    {
+      "from": "verify",
+      "from_port": "complete",
+      "to": "record_fixed"
+    }
+  ]
+}

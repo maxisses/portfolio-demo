@@ -1,0 +1,252 @@
+---
+# Configures the automation orchestrator over its REST API (no Ansible collection exists),
+# idempotent, in the style of aap-configure.yml (D40): project, credentials, integrations
+# (AAP, Models-as-a-Service), service account for the webhook, AAP as identity provider and
+# the workflows from Git, published. Run locally after the instance is Ready:
+#   source scripts/load-env.sh && ansible-playbook ansible/playbooks/orchestrator-configure.yml
+- name: Configure the automation orchestrator
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../orchestrator-config/objects.yml
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+    sm: "aws secretsmanager get-secret-value --query SecretString --output text --secret-id"
+  tasks:
+    - name: Admin login
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/auth/login"
+        method: POST
+        body_format: json
+        body:
+          username: admin
+          password: "{{ (lookup('ansible.builtin.pipe', sm ~ ' portfolio-demo/orchestrator/admin') | from_json).password }}"
+      register: login
+      no_log: true
+
+    - name: Remember the API headers
+      ansible.builtin.set_fact:
+        ao_headers: { Authorization: "Bearer {{ login.json.access_token }}" }
+      no_log: true
+
+    # ---------- project ----------
+    - name: Project
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/projects?name={{ project.name | urlencode }}"
+        headers: "{{ ao_headers }}"
+      register: proj
+
+    - name: Create project
+      when: proj.json.resources | length == 0
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/projects"
+        method: POST
+        headers: "{{ ao_headers }}"
+        body_format: json
+        body: "{{ project }}"
+        status_code: [200, 201]
+      register: proj_new
+
+    - name: Project ID
+      ansible.builtin.set_fact:
+        project_id: "{{ (proj_new.json.id) if proj.json.resources | length == 0 else proj.json.resources[0].id }}"
+
+    # ---------- secrets for the credentials ----------
+    - name: MaaS key of the orchestrator present?
+      ansible.builtin.command: "{{ sm }} portfolio-demo/orchestrator/maas"
+      register: maas_secret
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Issue a MaaS key (tier Local, 90 days) with the hub service account of AAP
+      when: maas_secret.rc != 0
+      ansible.builtin.shell: |
+        set -euo pipefail
+        sa=$(oc --kubeconfig {{ repo_root }}/local/kubeconfig get secret aap-token -n aap-automation -o jsonpath='{.data.token}' | base64 -d)
+        key=$(curl -sf -X POST -H "Authorization: Bearer $sa" -H 'Content-Type: application/json' \
+          -d '{"name":"automation-orchestrator","subscription":"standard","expiresIn":"90d"}' \
+          {{ maas_url }}/maas-api/v1/api-keys | jq -r .key)
+        aws secretsmanager create-secret --name portfolio-demo/orchestrator/maas \
+          --secret-string "$(jq -nc --arg k "$key" --arg u {{ maas_url }}/v1 '{api_key:$k, base_url:$u}')" >/dev/null
+      no_log: true
+
+    - name: Secret values
+      ansible.builtin.set_fact:
+        maas_key: "{{ (lookup('ansible.builtin.pipe', sm ~ ' portfolio-demo/orchestrator/maas') | from_json).api_key }}"
+        aap_token: "{{ lookup('ansible.builtin.pipe', sm ~ ' portfolio-demo/orchestrator/aap-token') }}"
+      no_log: true
+
+    # ---------- credentials ----------
+    - name: Credential types and existing credentials
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/{{ item }}?limit=100"
+        headers: "{{ ao_headers }}"
+      loop: [credential_types, credentials]
+      register: lists
+
+    - name: Lookup tables
+      ansible.builtin.set_fact:
+        ctype: "{{ lists.results[0].json.resources | items2dict(key_name='name', value_name='id') }}"
+        creds: "{{ lists.results[1].json.resources | items2dict(key_name='name', value_name='id') }}"
+
+    - name: Create or update credentials
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/credentials{{ ('/' ~ creds[item.name]) if item.name in creds else '' }}"
+        method: "{{ 'PATCH' if item.name in creds else 'POST' }}"
+        headers: "{{ ao_headers }}"
+        body_format: json
+        body: "{{ {'name': item.name, 'description': item.description, 'inputs': item.inputs}
+                  | combine({} if item.name in creds else {'credential_type_id': ctype[item.type], 'project_id': project_id}) }}"
+        status_code: [200, 201]
+      loop:
+        - name: "{{ aap_credential_name }}"
+          type: Ansible Automation Platform
+          description: OAuth token of the AAP user orchestrator (execute only on the incident templates)
+          inputs: { oauth_token: "{{ aap_token }}" }
+        - name: "{{ llm_credential_name }}"
+          type: LLM Provider
+          description: Models-as-a-Service key of the orchestrator, self-hosted models only
+          inputs: { api_key: "{{ maas_key }}" }
+      loop_control: { label: "{{ item.name }}" }
+      register: cred_out
+      no_log: true
+
+    - name: Credential IDs
+      ansible.builtin.set_fact:
+        aap_cred_id: "{{ cred_out.results[0].json.id }}"
+        llm_cred_id: "{{ cred_out.results[1].json.id }}"
+
+    # ---------- integrations ----------
+    - name: Existing integrations
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/integrations?limit=100"
+        headers: "{{ ao_headers }}"
+      register: ints
+
+    - name: Create or update integrations
+      vars:
+        existing: "{{ ints.json.resources | items2dict(key_name='name', value_name='id') }}"
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/integrations{{ ('/' ~ existing[item.name]) if item.name in existing else '' }}"
+        method: "{{ 'PATCH' if item.name in existing else 'POST' }}"
+        headers: "{{ ao_headers }}"
+        body_format: json
+        body: "{{ item.body | combine({} if item.name in existing else item.create_only) }}"
+        status_code: [200, 201]
+      loop:
+        - name: "{{ aap_integration_name }}"
+          body:
+            name: "{{ aap_integration_name }}"
+            description: AAP 2.7 on the RHEL VM
+            configuration: { integration_type: ansible_automation_platform, base_url: "{{ aap_url }}" }
+            management_credential_id: "{{ aap_cred_id }}"
+          create_only: { integration_type: ansible_automation_platform, scope: global }
+        - name: "{{ llm_integration_name }}"
+          body:
+            name: "{{ llm_integration_name }}"
+            description: "Self-hosted Granite behind MaaS, tier Local: plant data stays on the platform"
+            configuration: { integration_type: llm_provider, provider_hint: red_hat_ai, base_url: "{{ maas_url }}/v1" }
+            management_credential_id: "{{ llm_cred_id }}"
+          create_only:
+            integration_type: llm_provider
+            scope: global
+            discovered_models: [{ model_id: "{{ llm_model }}", name: "{{ llm_model_display }}", enabled: true }]
+      loop_control: { label: "{{ item.name }}" }
+      register: int_out
+
+    - name: Integration IDs
+      ansible.builtin.set_fact:
+        aap_int_id: "{{ int_out.results[0].json.id }}"
+        llm_int_id: "{{ int_out.results[1].json.id }}"
+
+    - name: Check the AAP integration
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/integrations/{{ aap_int_id }}/validate"
+        method: POST
+        headers: "{{ ao_headers }}"
+      register: aap_check
+      failed_when: not aap_check.json.success
+
+    - name: Models of the MaaS integration
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/integrations/{{ llm_int_id }}/models"
+        headers: "{{ ao_headers }}"
+      register: models
+
+    - name: Model ID of Granite
+      ansible.builtin.set_fact:
+        llm_model_id: "{{ (models.json.resources | selectattr('model_id', 'equalto', llm_model) | first).id }}"
+
+    # ---------- service account for the webhook ----------
+    - name: Service account
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/service_accounts?name={{ service_account | urlencode }}"
+        headers: "{{ ao_headers }}"
+      register: sa
+
+    - name: Create service account
+      when: sa.json.resources | length == 0
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/service_accounts"
+        method: POST
+        headers: "{{ ao_headers }}"
+        body_format: json
+        body: { name: "{{ service_account }}", description: "AAP job Operations: Report Incident starts incident workflows", project_id: "{{ project_id }}" }
+        status_code: [200, 201]
+      register: sa_new
+
+    - name: Service account ID
+      ansible.builtin.set_fact:
+        sa_id: "{{ sa_new.json.id if sa.json.resources | length == 0 else sa.json.resources[0].id }}"
+
+    - name: Webhook secret for AAP present and for this instance?
+      ansible.builtin.shell: "{{ sm }} portfolio-demo/orchestrator/webhook | jq -e --arg u {{ orchestrator_url }} '.url == $u' >/dev/null"
+      register: hook_secret
+      changed_when: false
+      failed_when: false
+
+    - name: New client credential (the secret is shown only once) into Secrets Manager
+      when: hook_secret.rc != 0 or sa.json.resources | length == 0
+      ansible.builtin.shell: |
+        set -euo pipefail
+        c=$(curl -sf -X POST -H "Authorization: Bearer {{ login.json.access_token }}" -H 'Content-Type: application/json' \
+          -d '{"credential_type":"client_credentials"}' {{ orchestrator_url }}/api/v1/service_accounts/{{ sa_id }}/credentials)
+        v=$(echo "$c" | jq -c --arg u {{ orchestrator_url }} --arg p {{ webhook_path }} '{url:$u, webhook_path:$p, client_id:.identifier, client_secret:.client_secret}')
+        aws secretsmanager put-secret-value --secret-id portfolio-demo/orchestrator/webhook --secret-string "$v" >/dev/null 2>&1 \
+          || aws secretsmanager create-secret --name portfolio-demo/orchestrator/webhook --secret-string "$v" >/dev/null
+      no_log: true
+
+    # ---------- AAP as identity provider (not idempotent in 2026.8, so only when missing) ----------
+    - name: Identity providers
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/identity_providers"
+        headers: "{{ ao_headers }}"
+      register: idps
+
+    - name: AAP as identity provider (people sign in with their AAP account)
+      when: idps.json.resources | selectattr('name', 'equalto', 'Ansible Automation Platform') | list | length == 0
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/identity_providers/setup_aap_oidc"
+        method: POST
+        headers: "{{ ao_headers }}"
+        body_format: json
+        body:
+          aap_url: "{{ aap_url }}"
+          organization: "{{ aap_org }}"
+          admin_username: admin
+          admin_password: "{{ (lookup('ansible.builtin.pipe', sm ~ ' portfolio-demo/aap/installer') | from_json).admin_password }}"
+        status_code: [200, 201]
+      no_log: true
+
+    # ---------- workflows from Git ----------
+    - name: Existing workflows
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/workflows?limit=100"
+        headers: "{{ ao_headers }}"
+      register: wfs
+
+    - name: Create or update workflows and publish them
+      ansible.builtin.include_tasks: tasks/orchestrator-workflow.yml
+      loop: "{{ workflows }}"
+      loop_control: { loop_var: wf, label: "{{ wf.file }}" }

@@ -1,0 +1,29 @@
+---
+# Configuration of the automation orchestrator as code (no secrets). Applied by
+# playbooks/orchestrator-configure.yml. Secrets come from AWS Secrets Manager
+# (portfolio-demo/orchestrator/*, portfolio-demo/aap/*).
+orchestrator_url: https://orchestrator.apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com
+aap_url: https://aap.sandbox3259.opentlc.com
+aap_org: Portfolio Demo
+maas_url: https://maas.apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com
+
+project:
+  name: plant-operations
+  description: Incidents and fixes at the production plants
+
+# AAP user "orchestrator" may run only the internal incident templates (aap-config/objects.yml)
+aap_credential_name: "AAP: user orchestrator"
+aap_integration_name: Ansible Automation Platform
+
+# Task agents use the self-hosted Granite behind Models-as-a-Service (tier Local)
+llm_credential_name: "MaaS key (tier Local)"
+llm_integration_name: Models-as-a-Service (OpenShift AI)
+llm_model: publishers/ai-engineering/models/granite
+llm_model_display: Granite 4.0 H-Tiny (self-hosted)
+
+# AAP job "Operations: Report Incident" starts the workflow through this webhook
+service_account: plant-alerts
+webhook_path: plant-incident
+
+workflows:
+  - file: plant-incident.workflow.json
