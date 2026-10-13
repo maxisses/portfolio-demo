@@ -79,7 +79,7 @@
       },
       "description": "Task agent on self-hosted Granite (Models-as-a-Service), no tools, structured answer",
       "parameters": {
-        "prompt": "You are the on-call assistant for an OpenShift platform that runs production plants.\nAn outage was reported at ${trigger.plant} (cluster ${trigger.cluster}): ${trigger.message}\n\nEvidence, collected read only by Ansible from the hub:\n${evidence.artifacts.evidence_text}\n\nFind the most likely root cause and recommend one action:\n- \"maintenance\" if an upgrade is in progress on this plant.\n- \"revert_commit\" if one recent Git change explains the outage, for example a new rule that blocks traffic inside the plant app. Put the full commit SHA of that change into suspected_commit.\n- \"escalate\" in every other case, with an empty suspected_commit.\nBe short and factual. Do not invent commits that are not in the evidence.",
+        "prompt": "You are the on-call assistant for an OpenShift platform that runs production plants.\nAn outage was reported at ${trigger.plant} (cluster ${trigger.cluster}): ${trigger.message}\n\nEvidence, collected read only by Ansible from the hub:\n${evidence.artifacts.evidence_text}\n\nFind the most likely root cause and recommend one action:\n- \"maintenance\" if an upgrade is in progress on this plant.\n- \"revert_commit\" if one recent Git change explains the outage, for example a rule that blocks traffic inside the plant app. Copy the full 40-character commit SHA of that change exactly as it appears in the evidence into suspected_commit.\n- \"escalate\" in every other case, with an empty suspected_commit.\nIn root_cause, explain the technical mechanism in one sentence (what is blocked or broken, and why the app fails).\nBe short and factual. Never invent a commit or a SHA.",
         "credential_id": "__LLM_CREDENTIAL_ID__",
         "llm_model_id": "__LLM_MODEL_ID__",
         "tool_selection_strategy": "NONE",
@@ -95,7 +95,7 @@
           "properties": {
             "root_cause": {
               "type": "string",
-              "description": "One sentence"
+              "description": "One sentence: the technical mechanism"
             },
             "recommendation": {
               "type": "string",
@@ -107,7 +107,7 @@
             },
             "suspected_commit": {
               "type": "string",
-              "description": "Full SHA of the change to revert, or empty"
+              "description": "Full 40-character SHA copied from the evidence, or empty"
             },
             "confidence": {
               "type": "string",
@@ -138,12 +138,12 @@
           {
             "port": "revert",
             "label": "Revert the change",
-            "condition": "${diagnose.output.recommendation} == \"revert_commit\""
+            "condition": "${diagnose.result.content.recommendation} == \"revert_commit\""
           },
           {
             "port": "maintenance",
             "label": "Planned maintenance",
-            "condition": "${diagnose.output.recommendation} == \"maintenance\""
+            "condition": "${diagnose.result.content.recommendation} == \"maintenance\""
           }
         ],
         "default_port": "escalate"
@@ -162,7 +162,7 @@
           "max",
           "admin"
         ],
-        "prompt": "Outage at ${trigger.plant} (${trigger.cluster}): ${trigger.message}\n\nDiagnosis by the task agent (self-hosted Granite, confidence ${diagnose.output.confidence}):\n${diagnose.output.summary}\n\nRoot cause: ${diagnose.output.root_cause}\nProposed fix: revert commit ${diagnose.output.suspected_commit} in Git. Ansible makes the change, the plant pulls it.\n\nApprove to fix the plant now, reject to leave it for the day shift.",
+        "prompt": "Outage at ${trigger.plant} (${trigger.cluster}): ${trigger.message}\n\nDiagnosis by the task agent (self-hosted Granite, confidence ${diagnose.result.content.confidence}):\n${diagnose.result.content.summary}\n\nRoot cause: ${diagnose.result.content.root_cause}\nProposed fix: revert commit ${diagnose.result.content.suspected_commit} in Git. Ansible makes the change, the plant pulls it.\n\nApprove to fix the plant now, reject to leave it for the day shift.",
         "decision_window": 7200,
         "fallback_decision": "reject"
       },
@@ -185,11 +185,11 @@
         "organization_name": "Portfolio Demo",
         "job_template_name": "Operations: Revert Change",
         "extra_vars": {
-          "commit_sha": "${diagnose.output.suspected_commit}",
+          "commit_sha": "${diagnose.result.content.suspected_commit}",
           "approved_by": "${approve.decided_by}",
           "execution_id": "${workflow_context.execution.id}",
           "cluster": "${trigger.cluster}",
-          "reason": "${diagnose.output.root_cause}"
+          "reason": "${diagnose.result.content.root_cause}"
         }
       }
     },
@@ -260,11 +260,11 @@
           "outcome": "fixed after approval",
           "message": "${trigger.message}",
           "reported_by": "${trigger.reported_by}",
-          "diagnosis": "${diagnose.output.summary}",
-          "root_cause": "${diagnose.output.root_cause}",
-          "suspected_commit": "${diagnose.output.suspected_commit}",
-          "confidence": "${diagnose.output.confidence}",
-          "recommendation": "${diagnose.output.recommendation}",
+          "diagnosis": "${diagnose.result.content.summary}",
+          "root_cause": "${diagnose.result.content.root_cause}",
+          "suspected_commit": "${diagnose.result.content.suspected_commit}",
+          "confidence": "${diagnose.result.content.confidence}",
+          "recommendation": "${diagnose.result.content.recommendation}",
           "decision": "${approve.decision}",
           "decided_by": "${approve.decided_by}",
           "decision_notes": "${approve.decision_notes}",
@@ -293,11 +293,11 @@
           "outcome": "fix not approved",
           "message": "${trigger.message}",
           "reported_by": "${trigger.reported_by}",
-          "diagnosis": "${diagnose.output.summary}",
-          "root_cause": "${diagnose.output.root_cause}",
-          "suspected_commit": "${diagnose.output.suspected_commit}",
-          "confidence": "${diagnose.output.confidence}",
-          "recommendation": "${diagnose.output.recommendation}",
+          "diagnosis": "${diagnose.result.content.summary}",
+          "root_cause": "${diagnose.result.content.root_cause}",
+          "suspected_commit": "${diagnose.result.content.suspected_commit}",
+          "confidence": "${diagnose.result.content.confidence}",
+          "recommendation": "${diagnose.result.content.recommendation}",
           "decision": "${approve.decision}",
           "decided_by": "${approve.decided_by}",
           "decision_notes": "${approve.decision_notes}",
@@ -321,14 +321,14 @@
         "job_template_name": "Operations: Record Incident",
         "extra_vars": {
           "cluster": "${trigger.cluster}",
-          "outcome": "${diagnose.output.recommendation}",
+          "outcome": "${diagnose.result.content.recommendation}",
           "message": "${trigger.message}",
           "reported_by": "${trigger.reported_by}",
-          "diagnosis": "${diagnose.output.summary}",
-          "root_cause": "${diagnose.output.root_cause}",
-          "suspected_commit": "${diagnose.output.suspected_commit}",
-          "confidence": "${diagnose.output.confidence}",
-          "recommendation": "${diagnose.output.recommendation}",
+          "diagnosis": "${diagnose.result.content.summary}",
+          "root_cause": "${diagnose.result.content.root_cause}",
+          "suspected_commit": "${diagnose.result.content.suspected_commit}",
+          "confidence": "${diagnose.result.content.confidence}",
+          "recommendation": "${diagnose.result.content.recommendation}",
           "execution_id": "${workflow_context.execution.id}"
         }
       }

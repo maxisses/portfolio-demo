@@ -13,6 +13,11 @@
     watched_paths:
       - gitops/components/fleet
       - "gitops/tenants/{{ cluster }}"
+    # What the on-call runbook says about the plant app (Localnews in namespace localnews)
+    runbook: |
+      - The plant app runs in namespace localnews: news-frontend, news-backend, location-extractor, feed-scraper and the database postgis.
+      - news-backend is ready only when it reaches its database postgis (port 5432) and the location-extractor service inside the namespace.
+      - Rules from enforced policies change the plant within a minute; reverting the Git commit that enforced a rule removes what the rule created.
   tasks:
     - name: Policies of this plant as reported to the hub
       kubernetes.core.k8s_info:
@@ -61,6 +66,18 @@
                                  'message': msgs | join('; ')}) -%}
           {%- endfor -%}
           {{ out }}
+        rules: >-
+          {%- set out = [] -%}
+          {%- for p in pol.resources if (p.spec.remediationAction | default('')) == 'enforce' and not (p.spec.disabled | default(false)) -%}
+          {%- for t in p.spec['policy-templates'] | default([]) -%}
+          {%- for o in t.objectDefinition.spec['object-templates'] | default([]) -%}
+          {%- set _ = out.append({'policy': p.metadata.name | regex_replace('^portfolio-policies\\.', ''),
+                                 'object': o.objectDefinition.kind ~ ' ' ~ (o.objectDefinition.metadata.namespace | default('')) ~ '/' ~ o.objectDefinition.metadata.name,
+                                 'spec': (o.objectDefinition.spec | default({}) | to_json)}) -%}
+          {%- endfor -%}
+          {%- endfor -%}
+          {%- endfor -%}
+          {{ out }}
         upgrade_in_progress: >-
           {{ cur.resources | default([]) | selectattr('spec.desiredCuration', 'defined')
              | selectattr('spec.desiredCuration', 'equalto', 'upgrade') | list | length > 0 }}
@@ -83,9 +100,17 @@
           {% for p in policies %}
           - {{ p.name }}: {{ p.compliant }}{{ (' (' ~ (p.message | truncate(300)) ~ ')') if p.message else '' }}
           {% endfor %}
-          Git changes in the last {{ hours }} hours that reach this plant (newest first):
+          Objects that enforced policies create on this plant:
+          {% for r in rules %}
+          - {{ r.object }} (policy {{ r.policy }}): {{ r.spec | truncate(400) }}
+          {% else %}
+          - none
+          {% endfor %}
+          Runbook notes:
+          {{ runbook }}
+          Git changes in the last {{ hours }} hours that reach this plant (newest first, full commit SHA):
           {% for c in changes %}
-          - commit {{ c.sha[:7] }} at {{ c.time }} by {{ c.author }}: {{ c.message.splitlines() | first }}
+          - commit {{ c.sha }} at {{ c.time }} by {{ c.author }}: {{ c.message.splitlines() | first }}
           {% for f in c.files %}
             file {{ f.name }}
             diff: {{ (f.patch | default('') | regex_replace('\n', ' | ')) | truncate(400) }}
