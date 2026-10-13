@@ -50,28 +50,28 @@
     - name: Evidence
       ansible.builtin.set_fact:
         policies: >-
-          {% set out = [] %}
-          {% for p in pol.resources %}
-          {% set msgs = [] %}
-          {% for d in (p.status | default({})).details | default([]) %}
-          {% if d.history | default([]) | length > 0 %}{% set _ = msgs.append(d.history[0].message | default('')) %}{% endif %}
-          {% endfor %}
-          {% set _ = out.append({'name': p.metadata.name | regex_replace('^portfolio-policies\\.', ''),
+          {%- set out = [] -%}
+          {%- for p in pol.resources -%}
+          {%- set msgs = [] -%}
+          {%- for d in (p.status | default({})).details | default([]) -%}
+          {%- if d.history | default([]) | length > 0 -%}{%- set _ = msgs.append(d.history[0].message | default('')) -%}{%- endif -%}
+          {%- endfor -%}
+          {%- set _ = out.append({'name': p.metadata.name | regex_replace('^portfolio-policies\\.', ''),
                                  'compliant': (p.status | default({})).compliant | default('Unknown'),
-                                 'message': msgs | join('; ')}) %}
-          {% endfor %}
+                                 'message': msgs | join('; ')}) -%}
+          {%- endfor -%}
           {{ out }}
         upgrade_in_progress: >-
           {{ cur.resources | default([]) | selectattr('spec.desiredCuration', 'defined')
              | selectattr('spec.desiredCuration', 'equalto', 'upgrade') | list | length > 0 }}
         changes: >-
-          {% set out = [] %}
-          {% for r in details.results %}
-          {% set files = [] %}
-          {% for f in r.json.files | default([]) %}{% set _ = files.append({'name': f.filename, 'patch': f.patch | default('')}) %}{% endfor %}
-          {% set _ = out.append({'sha': r.json.sha, 'time': r.json.commit.committer.date, 'author': r.json.commit.author.name,
-                                 'message': r.json.commit.message, 'files': files}) %}
-          {% endfor %}
+          {%- set out = [] -%}
+          {%- for r in details.results -%}
+          {%- set files = [] -%}
+          {%- for f in r.json.files | default([]) -%}{%- set _ = files.append({'name': f.filename, 'patch': f.patch | default('')}) -%}{%- endfor -%}
+          {%- set _ = out.append({'sha': r.json.sha, 'time': r.json.commit.committer.date, 'author': r.json.commit.author.name,
+                                 'message': r.json.commit.message, 'files': files}) -%}
+          {%- endfor -%}
           {{ out }}
 
     - name: Readable summary for the agent
