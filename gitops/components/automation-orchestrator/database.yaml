@@ -42,7 +42,18 @@ data:
     SELECT 'CREATE DATABASE temporal_visibility OWNER temporal' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'temporal_visibility')\gexec
     ALTER DATABASE orchestrator OWNER TO orchestrator;
     SQL
-    psql -v ON_ERROR_STOP=1 -d orchestrator -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto'
+    # pgcrypto muss dem Benutzer orchestrator gehören (die Migration kommentiert die Extension).
+    # Trusted Extension: als Rolle orchestrator anlegen, eine fremde Kopie vorher entfernen.
+    psql -v ON_ERROR_STOP=1 -d orchestrator <<'SQL'
+    DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM pg_extension e JOIN pg_roles r ON r.oid = e.extowner
+                 WHERE e.extname = 'pgcrypto' AND r.rolname <> 'orchestrator') THEN
+        DROP EXTENSION pgcrypto;
+      END IF;
+    END $$;
+    SET ROLE orchestrator;
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    SQL
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
