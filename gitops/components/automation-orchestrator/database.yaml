@@ -1,0 +1,132 @@
+# PostgreSQL 15 für den Orchestrator: Datenbanken orchestrator (mit pgcrypto), temporal und
+# temporal_visibility. Eigener Namespace, weil der Operator seinen Namespace per Default-Deny
+# abschottet. Die Datenbank lebt und stirbt mit dem Hub, Workflows kommen per Playbook aus Git.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: automation-orchestrator-db
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: postgres-creds
+  namespace: automation-orchestrator-db
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: postgres-creds
+  dataFrom:
+    - extract:
+        key: portfolio-demo/orchestrator/db
+---
+# Läuft bei jedem Start der Datenbank (sclorg-Image, Verzeichnis postgresql-start), idempotent.
+# Benutzer und Datenbank "orchestrator" legt das Image selbst aus POSTGRESQL_USER/DATABASE an.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-start
+  namespace: automation-orchestrator-db
+data:
+  orchestrator.sh: |
+    psql -v ON_ERROR_STOP=1 <<SQL
+    SELECT 'CREATE ROLE temporal LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'temporal')\gexec
+    ALTER ROLE temporal WITH LOGIN PASSWORD '${TEMPORAL_PASSWORD}';
+    SELECT 'CREATE DATABASE temporal OWNER temporal' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'temporal')\gexec
+    SELECT 'CREATE DATABASE temporal_visibility OWNER temporal' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'temporal_visibility')\gexec
+    ALTER DATABASE orchestrator OWNER TO orchestrator;
+    SQL
+    psql -v ON_ERROR_STOP=1 -d orchestrator -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto'
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: automation-orchestrator-db
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: automation-orchestrator-db
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: automation-orchestrator-db
+  labels:
+    app: postgres
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: registry.redhat.io/rhel9/postgresql-15@sha256:166345c7be279da8409ec81552bfc62b228ca295227ea884eb701edeaba26d15
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRESQL_USER
+              value: orchestrator
+            - name: POSTGRESQL_DATABASE
+              value: orchestrator
+            - name: POSTGRESQL_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-creds, key: ORCHESTRATOR_PASSWORD } }
+            - name: POSTGRESQL_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-creds, key: ADMIN_PASSWORD } }
+            - name: TEMPORAL_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-creds, key: TEMPORAL_PASSWORD } }
+            # Doku: über 100 Verbindungen, für 2 Backends und 2 Worker 230
+            - name: POSTGRESQL_MAX_CONNECTIONS
+              value: "250"
+            - name: PGDATA
+              value: /var/lib/pgsql/data/userdata
+          readinessProbe:
+            exec:
+              command: [/usr/libexec/check-container]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "1", memory: 2Gi }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/pgsql/data
+              subPath: userdata
+            - name: start
+              mountPath: /opt/app-root/src/postgresql-start
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-data
+        - name: start
+          configMap:
+            name: postgres-start

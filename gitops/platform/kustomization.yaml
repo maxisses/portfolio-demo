@@ -6,6 +6,7 @@ resources:
   - agent-access.yaml
   - ai-models.yaml
   - apps.yaml
+  - automation-orchestrator.yaml
   - cert-manager.yaml
   - connectivity-link.yaml
   - external-secrets.yaml

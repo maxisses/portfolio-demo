@@ -115,3 +115,36 @@ resource "aws_secretsmanager_secret_version" "openai" {
   secret_id     = aws_secretsmanager_secret.openai.id
   secret_string = jsonencode({ "api-key" = var.openai_api_key })
 }
+
+# Automation Orchestrator: Passwörter für seine PostgreSQL im Cluster (Benutzer orchestrator und
+# temporal, dazu der Datenbank-Admin) und das Startpasswort des lokalen Admins. Nur in Secrets
+# Manager, ESO bringt sie in den Namespace automation-orchestrator (gitops/components/automation-orchestrator).
+resource "random_password" "orchestrator" {
+  for_each = toset(["orchestrator_db", "temporal_db", "pg_admin", "admin"])
+  length   = 24
+  special  = false
+}
+
+resource "aws_secretsmanager_secret" "orchestrator_db" {
+  name                    = "portfolio-demo/orchestrator/db"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "orchestrator_db" {
+  secret_id = aws_secretsmanager_secret.orchestrator_db.id
+  secret_string = jsonencode({
+    ORCHESTRATOR_PASSWORD = random_password.orchestrator["orchestrator_db"].result
+    TEMPORAL_PASSWORD     = random_password.orchestrator["temporal_db"].result
+    ADMIN_PASSWORD        = random_password.orchestrator["pg_admin"].result
+  })
+}
+
+resource "aws_secretsmanager_secret" "orchestrator_admin" {
+  name                    = "portfolio-demo/orchestrator/admin"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "orchestrator_admin" {
+  secret_id     = aws_secretsmanager_secret.orchestrator_admin.id
+  secret_string = jsonencode({ username = "admin", password = random_password.orchestrator["admin"].result })
+}

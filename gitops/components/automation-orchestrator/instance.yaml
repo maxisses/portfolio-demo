@@ -1,0 +1,25 @@
+# Die Orchestrator-Instanz. Datenbankverkehr bleibt im Cluster (sslMode disable),
+# Zugang von außen über eine Route mit TLS am Router.
+apiVersion: aap.ansible.com/v1alpha1
+kind: AutomationOrchestrator
+metadata:
+  name: orchestrator
+  namespace: automation-orchestrator
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  postgres:
+    host: postgres.automation-orchestrator-db.svc
+    port: 5432
+    sslMode: disable
+    backendDatabase:
+      secretRef:
+        name: orchestrator-pg-credentials
+    temporalDatabase:
+      secretRef:
+        name: temporal-pg-credentials
+  ingress:
+    host: orchestrator.apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com
+  secrets:
+    initialAdminPasswordSecretRef:
+      name: orchestrator-admin
