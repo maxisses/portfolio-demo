@@ -1,0 +1,80 @@
+---
+# "Operations: Report Incident": hands an outage at a plant to the automation orchestrator
+# (workflow "Plant incident: diagnose and fix"). ACM starts it through a PolicyAutomation when
+# the plant app is unhealthy (target_clusters, policy_violations); a person or the agent can
+# start it too (cluster, symptom). The job only reports, it changes nothing.
+- name: Report an incident to the automation orchestrator
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cluster: ""
+    symptom: ""
+    policy: ""
+    source: ""
+    target_clusters: []
+    policy_violations: {}
+    orchestrator_secret: portfolio-demo/orchestrator/webhook
+  tasks:
+    - name: Which plant, what happened, who reports it
+      ansible.builtin.set_fact:
+        incident_cluster: "{{ cluster or (target_clusters | first | default('')) }}"
+        incident_source: "{{ source or ('acm' if target_clusters else 'manual') }}"
+        reporter: "{{ tower_user_name | default(awx_user_name | default('local')) }}"
+
+    - name: Plant known?
+      ansible.builtin.assert:
+        that: incident_cluster in ['ocp19', 'ocp20']
+        fail_msg: "Unknown plant cluster '{{ incident_cluster }}' (ocp19 = Plant Berlin, ocp20 = Plant Mülheim)"
+
+    - name: Symptom from ACM or from the request
+      ansible.builtin.set_fact:
+        incident_message: >-
+          {{ symptom or
+             ((policy_violations[incident_cluster].details | default([]) | map(attribute='history') | map('first') | map(attribute='message') | join('; '))
+              if incident_cluster in policy_violations else '')
+             or 'Plant app reported unhealthy' }}
+        plant_name: "{{ {'ocp19': 'Plant Berlin', 'ocp20': 'Plant Mülheim'}[incident_cluster] }}"
+
+    - name: Webhook URL and service account of the orchestrator (AWS Secrets Manager)
+      ansible.builtin.set_fact:
+        orch: "{{ lookup('amazon.aws.secretsmanager_secret', orchestrator_secret, region='eu-central-1') | from_json }}"
+      no_log: true
+
+    - name: Token for the service account (OAuth2 client credentials)
+      ansible.builtin.uri:
+        url: "{{ orch.url }}/api/v1/auth/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          grant_type: client_credentials
+          client_id: "{{ orch.client_id }}"
+          client_secret: "{{ orch.client_secret }}"
+      register: tok
+      no_log: true
+
+    - name: Start the incident workflow
+      ansible.builtin.uri:
+        url: "{{ orch.url }}/api/v1/webhooks/{{ orch.webhook_path }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ tok.json.access_token }}"
+        body_format: json
+        body:
+          cluster: "{{ incident_cluster }}"
+          plant: "{{ plant_name }}"
+          policy: "{{ policy or 'plant-app-health' }}"
+          message: "{{ incident_message | truncate(500) }}"
+          source: "{{ incident_source }}"
+          reported_by: "{{ reporter }}"
+          aap_job: "{{ tower_job_id | default('local') | string }}"
+        status_code: [200, 201, 202]
+      register: hook
+
+    - name: Result
+      ansible.builtin.set_stats:
+        data:
+          plant: "{{ plant_name }}"
+          cluster: "{{ incident_cluster }}"
+          orchestrator_run: "{{ orch.url }}/executions/{{ hook.json.execution_id }}"
+          execution_id: "{{ hook.json.execution_id }}"
+          message: "Incident handed to the automation orchestrator. An agent investigates, a person decides on the fix."

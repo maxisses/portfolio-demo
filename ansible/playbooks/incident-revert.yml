@@ -1,0 +1,89 @@
+---
+# "Operations: Revert Change" (internal, started by the automation orchestrator after a person
+# approved the fix): reverts one Git commit and lets the plant pull the corrected state.
+# Guard rails: only commits of the last 24 hours, and only changes to fleet rules or plant
+# tenants. The commit message names the approver and the orchestrator run.
+- name: Revert a change that broke a plant
+  hosts: localhost
+  gather_facts: false
+  vars:
+    commit_sha: ""
+    approved_by: ""
+    execution_id: ""
+    cluster: ""
+    reason: ""
+    max_age_hours: 24
+    allowed_paths: ["gitops/components/fleet/", "gitops/tenants/"]
+    gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
+    gitops_repo_web: https://github.com/maxisses/portfolio-demo
+    gitops_workdir: "/tmp/gitops-{{ tower_job_id | default('local') }}"
+  tasks:
+    - name: Input
+      ansible.builtin.assert:
+        that:
+          - commit_sha is match('^[0-9a-f]{7,40}$')
+          - approved_by | length > 0
+        fail_msg: "A commit (hex) and an approver are required"
+
+    - name: Store the deploy key from the credential as a file
+      ansible.builtin.copy:
+        dest: "{{ gitops_workdir }}-key"
+        content: "{{ (lookup('ansible.builtin.env', 'GIT_DEPLOY_KEY_B64') | b64decode | trim) ~ '\n' }}"
+        mode: "0600"
+      no_log: true
+
+    - name: Revert the commit (with guard rails) and push
+      ansible.builtin.shell: |
+        set -e
+        git clone -q --depth 100 {{ gitops_repo_ssh }} {{ gitops_workdir }}
+        cd {{ gitops_workdir }}
+        git config user.name "Ansible Automation Platform"
+        git config user.email "aap@portfolio-demo.invalid"
+        sha=$(git rev-parse --verify "{{ commit_sha }}^{commit}")
+        age=$(( $(date +%s) - $(git show -s --format=%ct "$sha") ))
+        [ "$age" -le $(( {{ max_age_hours }} * 3600 )) ] || { echo "GUARD: commit older than {{ max_age_hours }} h" >&2; exit 3; }
+        for f in $(git show --name-only --format= "$sha"); do
+          case "$f" in {{ allowed_paths | map('regex_replace', '$', '*') | join('|') }}) ;; *) echo "GUARD: $f is outside the allowed paths" >&2; exit 4;; esac
+        done
+        subject=$(git show -s --format=%s "$sha")
+        git revert --no-edit --no-commit "$sha"
+        git commit -q -F - <<MSG
+        Revert "$subject" ({{ {'ocp19': 'Plant Berlin', 'ocp20': 'Plant Mülheim'}[cluster] | default(cluster) }} incident)
+
+        Approved by {{ approved_by }} in automation orchestrator (run {{ execution_id }}),
+        executed by Ansible Automation Platform (job {{ tower_job_id | default('local') }}).
+        Reason: {{ reason | default('', true) | regex_replace('[`$]', '') | truncate(300) }}
+        Reverts $sha
+        MSG
+        for i in 1 2 3 4 5; do
+          git push -q origin HEAD:main && break
+          git pull -q --rebase origin main
+        done
+        echo "$sha"
+        git rev-parse HEAD
+      environment:
+        GIT_SSH_COMMAND: "ssh -i {{ gitops_workdir }}-key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+      register: rev
+
+    - name: Ask Argo CD to read the repository now
+      kubernetes.core.k8s:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: openshift-gitops
+        name: "{{ item }}"
+        state: patched
+        definition:
+          metadata:
+            annotations:
+              argocd.argoproj.io/refresh: hard
+      loop: ["fleet", "tenants-{{ cluster }}"]
+      failed_when: false
+      changed_when: false
+
+    - name: Result
+      ansible.builtin.set_stats:
+        data:
+          reverted_commit: "{{ rev.stdout_lines[-2] }}"
+          revert_commit: "{{ rev.stdout_lines[-1] }}"
+          revert_url: "{{ gitops_repo_web }}/commit/{{ rev.stdout_lines[-1] }}"
+          approved_by: "{{ approved_by }}"

@@ -1,0 +1,103 @@
+---
+# "Incident: Collect Evidence" (internal, started by the automation orchestrator): what the
+# hub knows about a plant, read only. Plant app health and enforced rules as ACM reports them
+# (pull model, no access into the plant), a running upgrade, and the Git changes of the last
+# 24 hours that reach this plant. Returns compact evidence for the task agent.
+- name: Collect evidence for a plant incident
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cluster: ocp19
+    repo: maxisses/portfolio-demo
+    hours: 24
+    watched_paths:
+      - gitops/components/fleet
+      - "gitops/tenants/{{ cluster }}"
+  tasks:
+    - name: Policies of this plant as reported to the hub
+      kubernetes.core.k8s_info:
+        api_version: policy.open-cluster-management.io/v1
+        kind: Policy
+        namespace: "{{ cluster }}"
+      register: pol
+
+    - name: Running upgrade (ClusterCurator)
+      kubernetes.core.k8s_info:
+        api_version: cluster.open-cluster-management.io/v1beta1
+        kind: ClusterCurator
+        namespace: "{{ cluster }}"
+      register: cur
+      failed_when: false
+
+    - name: Time window
+      ansible.builtin.set_fact:
+        since: "{{ lookup('ansible.builtin.pipe', 'date -u -d \"-' ~ hours ~ ' hours\" +%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Git changes in the watched paths (GitHub API, public repository)
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ repo }}/commits?path={{ item | urlencode }}&since={{ since }}&per_page=10"
+        headers: { Accept: application/vnd.github+json }
+      loop: "{{ watched_paths }}"
+      register: commits
+
+    - name: Details of the changes (files and diff)
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ repo }}/commits/{{ item }}"
+        headers: { Accept: application/vnd.github+json }
+      loop: "{{ (commits.results | map(attribute='json') | flatten | sort(attribute='commit.committer.date', reverse=true) | map(attribute='sha') | unique | list)[:5] }}"
+      register: details
+
+    - name: Evidence
+      ansible.builtin.set_fact:
+        policies: >-
+          {% set out = [] %}
+          {% for p in pol.resources %}
+          {% set msgs = [] %}
+          {% for d in (p.status | default({})).details | default([]) %}
+          {% if d.history | default([]) | length > 0 %}{% set _ = msgs.append(d.history[0].message | default('')) %}{% endif %}
+          {% endfor %}
+          {% set _ = out.append({'name': p.metadata.name | regex_replace('^portfolio-policies\\.', ''),
+                                 'compliant': (p.status | default({})).compliant | default('Unknown'),
+                                 'message': msgs | join('; ')}) %}
+          {% endfor %}
+          {{ out }}
+        upgrade_in_progress: >-
+          {{ cur.resources | default([]) | selectattr('spec.desiredCuration', 'defined')
+             | selectattr('spec.desiredCuration', 'equalto', 'upgrade') | list | length > 0 }}
+        changes: >-
+          {% set out = [] %}
+          {% for r in details.results %}
+          {% set files = [] %}
+          {% for f in r.json.files | default([]) %}{% set _ = files.append({'name': f.filename, 'patch': f.patch | default('')}) %}{% endfor %}
+          {% set _ = out.append({'sha': r.json.sha, 'time': r.json.commit.committer.date, 'author': r.json.commit.author.name,
+                                 'message': r.json.commit.message, 'files': files}) %}
+          {% endfor %}
+          {{ out }}
+
+    - name: Readable summary for the agent
+      ansible.builtin.set_fact:
+        evidence_text: |
+          Plant: {{ cluster }} ({{ {'ocp19': 'Plant Berlin', 'ocp20': 'Plant Mülheim'}[cluster] | default(cluster) }})
+          Upgrade in progress: {{ 'yes' if upgrade_in_progress else 'no' }}
+          Policies on this plant (as reported to the hub):
+          {% for p in policies %}
+          - {{ p.name }}: {{ p.compliant }}{{ (' (' ~ (p.message | truncate(300)) ~ ')') if p.message else '' }}
+          {% endfor %}
+          Git changes in the last {{ hours }} hours that reach this plant (newest first):
+          {% for c in changes %}
+          - commit {{ c.sha[:7] }} at {{ c.time }} by {{ c.author }}: {{ c.message.splitlines() | first }}
+          {% for f in c.files %}
+            file {{ f.name }}
+            diff: {{ (f.patch | default('') | regex_replace('\n', ' | ')) | truncate(400) }}
+          {% endfor %}
+          {% else %}
+          - none
+          {% endfor %}
+
+    - name: Result
+      ansible.builtin.set_stats:
+        data:
+          cluster: "{{ cluster }}"
+          evidence_text: "{{ evidence_text }}"
+          upgrade_in_progress: "{{ upgrade_in_progress }}"
+          recent_commits: "{{ changes | map(attribute='sha') | list }}"

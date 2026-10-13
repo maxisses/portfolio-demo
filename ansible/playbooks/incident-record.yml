@@ -1,0 +1,76 @@
+---
+# "Operations: Record Incident" (internal, last step of the incident workflow): writes the
+# incident report into the repository (docs/incidents), whatever the outcome was.
+- name: Record an incident
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cluster: ""
+    outcome: ""
+    message: ""
+    reported_by: ""
+    diagnosis: ""
+    root_cause: ""
+    suspected_commit: ""
+    confidence: ""
+    recommendation: ""
+    decision: ""
+    decided_by: ""
+    decision_notes: ""
+    revert_url: ""
+    health_checks: ""
+    execution_id: ""
+    orchestrator_url: ""
+    gitops_repo_ssh: git@github.com:maxisses/portfolio-demo.git
+    gitops_repo_web: https://github.com/maxisses/portfolio-demo
+    gitops_workdir: "/tmp/gitops-{{ tower_job_id | default('local') }}"
+  tasks:
+    - name: Timestamp and plant
+      ansible.builtin.set_fact:
+        now_utc: "{{ lookup('ansible.builtin.pipe', 'date -u +%Y-%m-%dT%H:%MZ') }}"
+        stamp: "{{ lookup('ansible.builtin.pipe', 'date -u +%Y%m%d-%H%M') }}"
+        plant: "{{ {'ocp19': 'Plant Berlin', 'ocp20': 'Plant Mülheim'}[cluster] | default(cluster) }}"
+
+    - name: Report to Git
+      ansible.builtin.include_tasks: tasks/gitops-commit.yml
+      vars:
+        argo_refresh: []
+        commit:
+          message: "Incident report: {{ plant }}, {{ outcome }} (automation orchestrator run {{ execution_id[:8] }}, AAP job {{ tower_job_id | default('local') }})"
+          files:
+            - path: "docs/incidents/{{ stamp }}-{{ cluster }}-{{ execution_id[:8] }}.md"
+              content: |
+                # Incident report: {{ plant }}
+
+                - Time of the report: {{ now_utc }}
+                - Outcome: **{{ outcome }}**
+                - Plant cluster: {{ cluster }}
+                - Reported by: {{ reported_by or 'ACM' }}, symptom: {{ message }}
+                - Automation orchestrator run: {{ orchestrator_url or execution_id }}
+
+                ## Diagnosis (task agent, self-hosted Granite via Models-as-a-Service, read only)
+
+                - Root cause: {{ root_cause or '-' }}
+                - Suspected change: {{ (gitops_repo_web ~ '/commit/' ~ suspected_commit) if suspected_commit else '-' }}
+                - Recommendation: {{ recommendation or '-' }} (confidence {{ confidence or '-' }})
+
+                {{ diagnosis }}
+
+                ## Decision
+
+                - Decision: {{ decision or '-' }} by {{ decided_by or '-' }}
+                {% if decision_notes %}- Notes: {{ decision_notes }}
+                {% endif %}
+
+                ## Fix
+
+                - Revert: {{ revert_url or 'none' }}
+                - Health checks after the fix: {{ health_checks or '-' }}
+
+                Agents investigate and report. People decide. Ansible makes the change.
+
+    - name: Result
+      ansible.builtin.set_stats:
+        data:
+          report: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
+          outcome: "{{ outcome }}"

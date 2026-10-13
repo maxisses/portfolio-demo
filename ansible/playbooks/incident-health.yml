@@ -1,0 +1,28 @@
+---
+# "Incident: Plant Health Check" (internal, started by the automation orchestrator in its
+# check loop): is the plant app healthy again? Reads the policy "plant-app-health" as ACM
+# reports it for this plant. Never fails, it answers healthy true or false.
+- name: Is the plant app healthy?
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cluster: ocp19
+  tasks:
+    - name: Plant app health as reported to the hub
+      kubernetes.core.k8s_info:
+        api_version: policy.open-cluster-management.io/v1
+        kind: Policy
+        namespace: "{{ cluster }}"
+        name: portfolio-policies.plant-app-health
+      register: pol
+
+    - name: Verdict
+      ansible.builtin.set_fact:
+        state: "{{ (pol.resources | first | default({})).status.compliant | default('Unknown') }}"
+
+    - name: Result
+      ansible.builtin.set_stats:
+        data:
+          cluster: "{{ cluster }}"
+          healthy: "{{ state == 'Compliant' }}"
+          state: "{{ state }}"

@@ -19,6 +19,9 @@ aap_users:
   - username: acm-automation
     first_name: ACM
     last_name: (Hub automation)
+  - username: orchestrator
+    first_name: Automation
+    last_name: orchestrator
 
 # Self-service catalog: job templates that humans (portal) and the agent (MCP) may run.
 # The portal builds its forms from the surveys; the agent sees the same fields as parameters.
@@ -88,6 +91,47 @@ aap_catalog_templates:
     playbook: ansible/playbooks/edge-check.yml
     credentials: [cred_hub]
     execute: [acm-automation, max, agent-claude]
+    ask_variables: true
+
+  # Incidents at the plants: ACM, a person or the agent reports, the automation orchestrator
+  # runs the process (workflow "Plant incident: diagnose and fix") and calls the internal
+  # templates below with its own user. Only those templates change anything.
+  - name: "Operations: Report Incident"
+    description: Hands an outage at a plant to the automation orchestrator. An agent investigates, a person decides on the fix.
+    playbook: ansible/playbooks/incident-report.yml
+    credentials: []
+    execute: [acm-automation, agent-claude, max]
+    ask_variables: true
+    survey:
+      - { variable: cluster, question_name: "Plant cluster (ocp19 = Plant Berlin, ocp20 = Plant Mülheim)", type: text, required: false, default: ocp19, max: 12 }
+      - { variable: symptom, question_name: What is wrong, type: text, required: false, default: "", max: 300 }
+  - name: "Incident: Collect Evidence"
+    description: Internal step of the incident workflow. Reads plant state from the hub and recent Git changes, read only.
+    playbook: ansible/playbooks/incident-evidence.yml
+    credentials: [cred_hub]
+    execute: [orchestrator]
+    view: [max, agent-claude]
+    ask_variables: true
+  - name: "Operations: Revert Change"
+    description: Internal step of the incident workflow. Reverts one recent Git change after a person approved it.
+    playbook: ansible/playbooks/incident-revert.yml
+    credentials: [cred_deploykey, cred_hub]
+    execute: [orchestrator]
+    view: [max, agent-claude]
+    ask_variables: true
+  - name: "Incident: Plant Health Check"
+    description: Internal step of the incident workflow. Is the plant app healthy again?
+    playbook: ansible/playbooks/incident-health.yml
+    credentials: [cred_hub]
+    execute: [orchestrator]
+    view: [max, agent-claude]
+    ask_variables: true
+  - name: "Operations: Record Incident"
+    description: Internal step of the incident workflow. Writes the incident report into the repository (docs/incidents).
+    playbook: ansible/playbooks/incident-record.yml
+    credentials: [cred_deploykey]
+    execute: [orchestrator]
+    view: [max, agent-claude]
     ask_variables: true
 
 # Workflows with approval: the requester only sees the workflow; the executing template is
