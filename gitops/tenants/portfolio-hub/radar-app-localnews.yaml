@@ -39,7 +39,7 @@ spec:
       releaseName: localnews
       valueFiles: [values.yaml]
       valuesObject:
-        clusterDomain: apps.rosa.portfolio-hub2.ocf9.p3.openshiftapps.com
+        clusterDomain: apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com
         locationExtractor:
           image: image-registry.openshift-image-registry.svc:5000/localnews-build/location-extractor
           imageTag: llm
