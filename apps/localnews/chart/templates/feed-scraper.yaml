@@ -25,3 +25,7 @@ spec:
               value: {{ .Values.feedScraper.feedsUrl | quote }}
             - name: SCRAPER_FEED_BACKEND_HOST
               value: {{ .Values.newsBackend.name }}
+          {{- with .Values.feedScraper.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
