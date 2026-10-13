@@ -1,0 +1,23 @@
+# Reaction to an outage at a plant: as soon as "plant-app-health" is violated, ACM starts the
+# job "Operations: Report Incident" in AAP. That job hands the incident to the automation
+# orchestrator (workflow "Plant incident: diagnose and fix").
+apiVersion: policy.open-cluster-management.io/v1beta1
+kind: PolicyAutomation
+metadata:
+  name: plant-app-incident
+  namespace: portfolio-policies
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  policyRef: plant-app-health
+  eventHook: noncompliant
+  mode: everyEvent
+  delayAfterRunSeconds: 600
+  automationDef:
+    name: "Operations: Report Incident"
+    secret: aap-tower
+    type: AnsibleJob
+    extra_vars:
+      policy: plant-app-health
+      source: acm

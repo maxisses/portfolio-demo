@@ -1,0 +1,75 @@
+# Story "one more thing": a new segmentation rule from the IEC 62443 programme for Plant Berlin.
+# Well meant, but too strict: it lets only router traffic into the plant app, so the backend
+# loses its database and the plant app goes down. scripts/incident-inject.sh switches it on
+# with one commit (disabled: false); the incident workflow reverts that commit after a person
+# approved the fix, and ACM removes the NetworkPolicy again (pruneObjectBehavior).
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: plant-segmentation
+  namespace: portfolio-policies
+  annotations:
+    policy.open-cluster-management.io/standards: IEC 62443-3-3
+    policy.open-cluster-management.io/categories: FR 5 Restricted data flow
+    policy.open-cluster-management.io/controls: SR 5.1 Network segmentation
+spec:
+  remediationAction: enforce
+  disabled: true
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: plant-segmentation
+        spec:
+          severity: medium
+          pruneObjectBehavior: DeleteIfCreated
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: networking.k8s.io/v1
+                kind: NetworkPolicy
+                metadata:
+                  name: iec62443-zone-boundary
+                  namespace: localnews
+                spec:
+                  # zone boundary: only the plant's ingress zone may talk to the app
+                  podSelector: {}
+                  policyTypes: [Ingress]
+                  ingress:
+                    - from:
+                        - namespaceSelector:
+                            matchLabels:
+                              policy-group.network.openshift.io/ingress: ""
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: plant-berlin
+  namespace: portfolio-policies
+spec:
+  clusterSets: [edge]
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            name: ocp19
+  tolerations:
+    - key: cluster.open-cluster-management.io/unreachable
+      operator: Exists
+    - key: cluster.open-cluster-management.io/unavailable
+      operator: Exists
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: plant-segmentation
+  namespace: portfolio-policies
+placementRef:
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+  name: plant-berlin
+subjects:
+  - apiGroup: policy.open-cluster-management.io
+    kind: Policy
+    name: plant-segmentation

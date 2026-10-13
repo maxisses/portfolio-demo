@@ -1,0 +1,47 @@
+# Health of the plant app (Localnews) on both plants, report only. The backend is ready only
+# when it reaches its database and the location service, so this catches outages inside the
+# plant. A violation starts the incident workflow (fleet-automation/policy-automation-incident.yaml).
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: plant-app-health
+  namespace: portfolio-policies
+  annotations:
+    policy.open-cluster-management.io/standards: Plant operations
+    policy.open-cluster-management.io/categories: Availability
+    policy.open-cluster-management.io/controls: Plant app ready
+spec:
+  remediationAction: inform
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: plant-app-health
+        spec:
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: news-backend
+                  namespace: localnews
+                status:
+                  readyReplicas: 1
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: plant-app-health
+  namespace: portfolio-policies
+placementRef:
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+  name: edge
+subjects:
+  - apiGroup: policy.open-cluster-management.io
+    kind: Policy
+    name: plant-app-health

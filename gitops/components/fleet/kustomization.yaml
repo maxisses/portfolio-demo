@@ -8,4 +8,6 @@ resources:
   - policy-gitops-edge.yaml
   - policy-console-banner.yaml
   - policy-edge-version.yaml
+  - policy-plant-segmentation.yaml
+  - policy-plant-app-health.yaml
   - gitops-pull.yaml

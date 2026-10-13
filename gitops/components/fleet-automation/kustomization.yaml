@@ -4,3 +4,4 @@ resources:
   - aap-resource-operator.yaml
   - aap-tower.yaml
   - policy-automation.yaml
+  - policy-automation-incident.yaml
