@@ -15,3 +15,5 @@ Alles, was ein Mensch klicken oder eintippen musste, weil es nicht als Code geht
 | 13.10.2026 | Max | `rosa login --use-device-code`, `oc login` auf ocp19 und ocp20 | Red-Hat-SSO; Lab-Cluster nur im internen Netz |
 | 13.10.2026 | Agent | `rosa create ocm-role` und `rosa create user-role` (`--mode auto`) im neuen Account | Verknüpft AWS-Rollen mit der Red-Hat-Organisation; kein Terraform-Weg im verwendeten Modul |
 | 13.10.2026 | Agent | PVC und Pods der Portal-Datenbank gelöscht | Datenbank war mit einem Passwort initialisiert, bevor das Secret aus Secrets Manager da war |
+| 13.10.2026 | Max | Erste Anmeldung am Automation Orchestrator über "Ansible Automation Platform" (SSO) als `max`, damit der Benutzer für Freigaben existiert | Anmeldung im Browser |
+| 13.10.2026 | Max | Vor jeder Vorführung der Orchestrator-Story: `scripts/incident-inject.sh` (spielt die Störung in Werk Berlin per Commit ein) | Teil der Vorführung |

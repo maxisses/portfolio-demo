@@ -338,6 +338,26 @@ agent/                     Vorlage für das Demo-Verzeichnis des Agenten (siehe 
   Platzhaltern und einer eigenen Kubeconfig (read-only für Hub, ocp19, ocp20 über
   Cluster-Proxy).
 
+### 6.6 Automation Orchestrator (One more thing)
+
+Der Orchestrator hält Prozesse zusammen, die AAP-Workflows nicht abbilden: nach Daten verzweigen,
+einen KI-Schritt protokollieren, eine Freigabe mit Kontext einholen, in einer Schleife warten. Er
+selbst ändert nichts, das tun weiter die AAP-Templates.
+
+```
+Werk Berlin: Policy plant-segmentation (SR 5.1) erzeugt NetworkPolicy -> news-backend nicht bereit
+  -> Policy plant-app-health NonCompliant (Pull-Status am Hub)
+  -> ACM PolicyAutomation -> AAP "Operations: Report Incident" -> Webhook (Service Account)
+  -> Workflow "Plant incident: diagnose and fix":
+       AAP "Incident: Collect Evidence" (lesend) -> Task Agent (Granite über MaaS, JSON-Schema)
+       -> Switch (revert | maintenance | escalate) -> Freigabe (max) -> AAP "Operations: Revert Change"
+       -> Schleife: 30 s warten, AAP "Incident: Plant Health Check" -> AAP "Operations: Record Incident"
+```
+
+Störung einspielen: `scripts/incident-inject.sh` (ein Commit). Konfiguration nach jedem Neuaufbau:
+`ansible/playbooks/orchestrator-configure.yml`. Der Demo-Agent kann Störungen melden, aber nicht
+freigeben.
+
 ## 7. Bauanleitung
 
 Zeitplan: Mittwochabend Phasen 0 bis 2, Donnerstag Phasen 3 bis 7, Donnerstagabend Phase 8.
@@ -509,6 +529,11 @@ Alle Entscheidungen sind mit Max abgestimmt (Interview in fünf Runden am 30.09.
 | D48 | Portal synchronisiert die Organisation "Portfolio Demo" alle 5 Minuten; Workflows (Datenbank, Edge-Upgrade) erscheinen dort nicht, nur Job-Templates. Workflows bestellt der Agent über MCP oder ein Mensch in AAP | Verhalten des Portal-Plugins 2.2.10 |
 | D49 | ML-Engineer-Persona: Katalog-Item "AI Namespace" mit Schalter `gpu` (PyTorch-CUDA-Workbench, eine NVIDIA L4, Hardware-Profil `nvidia-l4`); Notebook `ai/samples/02-fine-tuning.ipynb` trainiert Granite 4.0 350M per LoRA, ohne Deploy | Der GPU-Pool hat maximal 2 L4: eine für Granite, eine für die Workbench. Ein zweiter GPU-Namespace bleibt hängen |
 | D50 | Präsentation `presentation/index.html` (HTML, Red-Hat-Stil aus der Vorlage) bleibt lokal und gitignoriert | Enthält interne Lab-Hostnamen der Edge-Cluster |
+| D51 | Automation Orchestrator 2026.8 (GA, Add-on zu AAP 2.7) auf dem ROSA-Hub, per Argo CD (`gitops/components/automation-orchestrator`), ohne fünften Worker | Läuft nur auf OpenShift; die vier Worker sind bei den Requests zu etwa 50 % belegt |
+| D52 | Eigene PostgreSQL 15 im Cluster (Namespace `automation-orchestrator-db`), Passwörter aus `terraform/platform` über Secrets Manager, `sslMode: disable` | Lebt und stirbt mit dem Hub wie die MaaS-Datenbank; die Workflows kommen aus Git |
+| D53 | Orchestrator-Konfiguration per REST-Playbook (`ansible/playbooks/orchestrator-configure.yml`), Workflow als JSON in `ansible/orchestrator-config/`, Änderungen per Hash-Label erkannt | Es gibt keine Collection; analog D40 |
+| D54 | Task Agent im Workflow nutzt Granite über MaaS (Tier Local), ohne Werkzeuge. Ändern dürfen nur AAP-Templates mit Leitplanken (Revert nur für Commits der letzten 24 h unter `gitops/components/fleet` oder `gitops/tenants`), freigeben nur Menschen | Werksdaten bleiben im Haus; ein Rechtemodell für Menschen und Agenten |
+| D55 | Orchestrator-Story als "One more thing" am Ende der Präsentation: Segmentierungsregel (IEC 62443-3-3 SR 5.1) legt die Werks-App in Berlin lahm, ACM meldet, Granite diagnostiziert, Max gibt frei, Ansible nimmt den Commit zurück | Wunsch von Max (13.10.) |
 | D39 | MaaS nach der Referenz `rh-aiservices-bu/rhoai-maas-guide`: Gateway `maas-default-gateway` mit ROSA-Wildcard-Zertifikat, PostgreSQL im Cluster, Passwort aus Secrets Manager über ESO | In 3.5 liegt MaaS unter `aigateway.modelsAsAService` |
 
 ## 10. Offene Punkte (klären wir beim Bau)
@@ -562,3 +587,4 @@ Alle Entscheidungen sind mit Max abgestimmt (Interview in fünf Runden am 30.09.
 - MCP-Server für OpenShift: https://www.redhat.com/en/blog/model-context-protocol-server-red-hat-openshift-now-available-technology-preview
 - OpenShift MCP-Server, User Guide: https://github.com/openshift/openshift-mcp-server/blob/main/docs/openshift/user-guide.md
 - Localnews (ice-demo): https://github.com/maxisses/ice-demo
+- Automation Orchestrator 2026.8: https://docs.redhat.com/en/documentation/automation_orchestrator/2026.8
