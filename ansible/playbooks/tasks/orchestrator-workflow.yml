@@ -9,9 +9,10 @@
          | replace('__LLM_CREDENTIAL_ID__', llm_cred_id) | replace('__LLM_MODEL_ID__', llm_model_id)
          | replace('__SERVICE_ACCOUNT_ID__', sa_id) | from_json }}
 
-- name: Existing workflow with this name
+- name: Existing workflow with this name, fingerprint of the definition in Git
   ansible.builtin.set_fact:
     wf_existing: "{{ wfs.json.resources | selectattr('name', 'equalto', wf_def.name) | list }}"
+    wf_hash: "{{ (wf_def | to_json(sort_keys=true)) | hash('sha256') }}"
 
 - name: Create
   when: wf_existing | length == 0
@@ -20,25 +21,18 @@
     method: POST
     headers: "{{ ao_headers }}"
     body_format: json
-    body: { name: "{{ wf_def.name }}", description: "{{ wf_def.description }}", project_id: "{{ project_id }}", workflow_definition: "{{ wf_def }}" }
+    body: { name: "{{ wf_def.name }}", description: "{{ wf_def.description }}", project_id: "{{ project_id }}", labels: { git-sha256: "{{ wf_hash }}" }, workflow_definition: "{{ wf_def }}" }
     status_code: [200, 201]
   register: wf_created
 
-- name: Current definition
-  when: wf_existing | length > 0
-  ansible.builtin.uri:
-    url: "{{ orchestrator_url }}/api/v1/workflows/{{ wf_existing[0].id }}"
-    headers: "{{ ao_headers }}"
-  register: wf_current
-
 - name: Update (new version) when the definition in Git differs
-  when: wf_existing | length > 0 and (wf_current.json.workflow_definition | default({})) != wf_def
+  when: wf_existing | length > 0 and (wf_existing[0].labels | default({}))['git-sha256'] | default('') != wf_hash
   ansible.builtin.uri:
     url: "{{ orchestrator_url }}/api/v1/workflows/{{ wf_existing[0].id }}"
     method: PATCH
     headers: "{{ ao_headers }}"
     body_format: json
-    body: { workflow_definition: "{{ wf_def }}", change_description: "Updated from Git (ansible/orchestrator-config/{{ wf.file }})" }
+    body: { workflow_definition: "{{ wf_def }}", labels: { git-sha256: "{{ wf_hash }}" }, change_description: "Updated from Git (ansible/orchestrator-config/{{ wf.file }})" }
   register: wf_updated
 
 - name: Workflow state
@@ -48,7 +42,7 @@
   register: wf_state
 
 - name: Publish the newest version
-  when: wf_state.json.published_version | default(none) != wf_state.json.current_version
+  when: wf_state.json.published_version_number | default(none) != wf_state.json.current_version
   ansible.builtin.uri:
     url: "{{ orchestrator_url }}/api/v1/workflows/{{ wf_state.json.id }}/versions/{{ wf_state.json.current_version }}/publish"
     method: POST

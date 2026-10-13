@@ -79,7 +79,7 @@
       },
       "description": "Task agent on self-hosted Granite (Models-as-a-Service), no tools, structured answer",
       "parameters": {
-        "prompt": "You are the on-call assistant for an OpenShift platform that runs production plants.\nAn outage was reported at ${trigger.plant} (cluster ${trigger.cluster}): ${trigger.message}\n\nEvidence, collected read only by Ansible from the hub:\n${evidence.artifacts.evidence_text}\n\nFind the most likely root cause and recommend one action:\n- \"maintenance\" if an upgrade is in progress on this plant.\n- \"revert_commit\" if one recent Git change explains the outage, for example a rule that blocks traffic inside the plant app. Copy the full 40-character commit SHA of that change exactly as it appears in the evidence into suspected_commit.\n- \"escalate\" in every other case, with an empty suspected_commit.\nIn root_cause, explain the technical mechanism in one sentence (what is blocked or broken, and why the app fails).\nBe short and factual. Never invent a commit or a SHA.",
+        "prompt": "You are the on-call assistant for an OpenShift platform that runs production plants.\nAn outage was reported at ${trigger.plant} (cluster ${trigger.cluster}): ${trigger.message}\n\nEvidence, collected read only by Ansible from the hub:\n${evidence.artifacts.evidence_text}\n\nFind the most likely root cause and recommend one action:\n- \"maintenance\" if an upgrade is in progress on this plant.\n- \"revert_commit\" if one recent Git change explains the outage, for example a rule that blocks traffic inside the plant app. Copy the full 40-character commit SHA of that change exactly as it appears in the evidence into suspected_commit.\n- \"escalate\" in every other case, with an empty suspected_commit.\nIn root_cause, explain the technical mechanism in one sentence (what is blocked or broken, and why the app fails).\nAnswer with one JSON object that has exactly the keys root_cause, recommendation, suspected_commit, confidence and summary, not with a JSON schema.\nBe short and factual. Never invent a commit or a SHA.",
         "credential_id": "__LLM_CREDENTIAL_ID__",
         "llm_model_id": "__LLM_MODEL_ID__",
         "tool_selection_strategy": "NONE",
@@ -121,7 +121,8 @@
               "type": "string",
               "description": "Two or three sentences for the on-call engineer"
             }
-          }
+          },
+          "additionalProperties": false
         }
       }
     },
