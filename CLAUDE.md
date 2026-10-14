@@ -349,7 +349,8 @@ Werk Berlin: Policy plant-segmentation (SR 5.1) erzeugt NetworkPolicy -> news-ba
   -> Policy plant-app-health NonCompliant (Pull-Status am Hub)
   -> ACM PolicyAutomation -> AAP "Operations: Report Incident" -> Webhook (Service Account)
   -> Workflow "Plant incident: diagnose and fix":
-       AAP "Incident: Collect Evidence" (lesend) -> Task Agent (Granite über MaaS, JSON-Schema)
+       AAP "Incident: Collect Evidence" (lesend) -> Task Agent (Granite über MaaS, JSON-Schema,
+         Lese-Werkzeuge über OpenShift-MCP im Werk)
        -> Switch (revert | maintenance | escalate) -> Freigabe (max) -> AAP "Operations: Revert Change"
        -> Schleife: 30 s warten, AAP "Incident: Plant Health Check" -> AAP "Operations: Record Incident"
 ```
@@ -534,6 +535,7 @@ Alle Entscheidungen sind mit Max abgestimmt (Interview in fünf Runden am 30.09.
 | D53 | Orchestrator-Konfiguration per REST-Playbook (`ansible/playbooks/orchestrator-configure.yml`), Workflow als JSON in `ansible/orchestrator-config/`, Änderungen per Hash-Label erkannt | Es gibt keine Collection; analog D40 |
 | D54 | Task Agent im Workflow nutzt Granite über MaaS (Tier Local), ohne Werkzeuge. Ändern dürfen nur AAP-Templates mit Leitplanken (Revert nur für Commits der letzten 24 h unter `gitops/components/fleet` oder `gitops/tenants`), freigeben nur Menschen | Werksdaten bleiben im Haus; ein Rechtemodell für Menschen und Agenten |
 | D55 | Orchestrator-Story als "One more thing" am Ende der Präsentation: Segmentierungsregel (IEC 62443-3-3 SR 5.1) legt die Werks-App in Berlin lahm, ACM meldet, Granite diagnostiziert, Max gibt frei, Ansible nimmt den Commit zurück | Wunsch von Max (13.10.) |
+| D56 | Task Agent darf über einen OpenShift-MCP-Server (`gitops/components/orchestrator-mcp`, read only, `view` auf Hub und Werken über den Cluster-Proxy, ohne Secrets) im Werk nachsehen. Zugang nur mit dem Token von `orchestrator-diagnose` (oauth-proxy mit SubjectAccessReview), das im Orchestrator nur der Diagnose-Schritt bekommt. Granite mit Tool Calling (`--tool-call-parser=granite4`) | Drei Schichten: Read-only-Server, RBAC, Werkzeugauswahl pro Schritt; ein größeres Modell lässt sich hinter MaaS tauschen |
 | D39 | MaaS nach der Referenz `rh-aiservices-bu/rhoai-maas-guide`: Gateway `maas-default-gateway` mit ROSA-Wildcard-Zertifikat, PostgreSQL im Cluster, Passwort aus Secrets Manager über ESO | In 3.5 liegt MaaS unter `aigateway.modelsAsAService` |
 
 ## 10. Offene Punkte (klären wir beim Bau)
