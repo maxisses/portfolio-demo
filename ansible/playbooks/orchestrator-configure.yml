@@ -97,6 +97,9 @@
       ansible.builtin.set_fact:
         maas_key: "{{ (lookup('ansible.builtin.pipe', sm ~ ' portfolio-demo/orchestrator/maas') | from_json).api_key }}"
         aap_token: "{{ lookup('ansible.builtin.pipe', sm ~ ' portfolio-demo/orchestrator/aap-token') }}"
+        mcp_token: >-
+          {{ lookup('ansible.builtin.pipe', 'oc --kubeconfig ' ~ repo_root ~ '/local/kubeconfig get secret orchestrator-diagnose-token
+             -n orchestrator-mcp -o jsonpath={.data.token}') | b64decode }}
       no_log: true
 
     # ---------- credentials ----------
@@ -130,6 +133,10 @@
           type: LLM Provider
           description: Models-as-a-Service key of the orchestrator, self-hosted models only
           inputs: { api_key: "{{ maas_key }}" }
+        - name: "{{ mcp_credential_name }}"
+          type: HTTP Bearer Token
+          description: Token of the service account orchestrator-diagnose (may call the read-only OpenShift MCP)
+          inputs: { token: "{{ mcp_token }}" }
       loop_control: { label: "{{ item.name }}" }
       register: cred_out
       no_log: true
@@ -138,6 +145,7 @@
       ansible.builtin.set_fact:
         aap_cred_id: "{{ cred_out.results[0].json.id }}"
         llm_cred_id: "{{ cred_out.results[1].json.id }}"
+        mcp_cred_id: "{{ cred_out.results[2].json.id }}"
 
     # ---------- integrations ----------
     - name: Existing integrations
@@ -174,6 +182,13 @@
             integration_type: llm_provider
             scope: global
             discovered_models: [{ model_id: "{{ llm_model }}", name: "{{ llm_model_display }}", enabled: true }]
+        - name: "{{ mcp_integration_name }}"
+          body:
+            name: "{{ mcp_integration_name }}"
+            description: "OpenShift MCP server, read only: hub and both plants through the ACM cluster proxy"
+            configuration: { integration_type: mcp_server, base_url: "{{ mcp_url }}" }
+            management_credential_id: "{{ mcp_cred_id }}"
+          create_only: { integration_type: mcp_server, scope: global }
       loop_control: { label: "{{ item.name }}" }
       register: int_out
 
@@ -181,6 +196,7 @@
       ansible.builtin.set_fact:
         aap_int_id: "{{ int_out.results[0].json.id }}"
         llm_int_id: "{{ int_out.results[1].json.id }}"
+        mcp_int_id: "{{ int_out.results[2].json.id }}"
 
     - name: Check the AAP integration
       ansible.builtin.uri:
@@ -199,6 +215,44 @@
     - name: Model ID of Granite
       ansible.builtin.set_fact:
         llm_model_id: "{{ (models.json.resources | selectattr('model_id', 'equalto', llm_model) | first).id }}"
+
+    - name: Discover the tools of the OpenShift MCP
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/integrations/{{ mcp_int_id }}/refresh"
+        method: POST
+        headers: "{{ ao_headers }}"
+        status_code: [200, 201, 202]
+      register: mcp_refresh
+      failed_when: false
+
+    - name: Tools of the OpenShift MCP
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/integrations/{{ mcp_int_id }}/tools?limit=200"
+        headers: "{{ ao_headers }}"
+      register: mcp_tools_out
+      until: mcp_tools_out.json.resources | length > 0
+      retries: 6
+      delay: 5
+
+    - name: Enable only the selected tools
+      vars:
+        wanted: "{{ mcp_tools_out.json.resources | selectattr('name', 'in', mcp_tools) | map(attribute='id') | list }}"
+        others: "{{ mcp_tools_out.json.resources | rejectattr('name', 'in', mcp_tools) | map(attribute='id') | list }}"
+      ansible.builtin.uri:
+        url: "{{ orchestrator_url }}/api/v1/integrations/{{ mcp_int_id }}/tools/bulk_update"
+        method: PATCH
+        headers: "{{ ao_headers }}"
+        body_format: json
+        body: { tool_ids: "{{ item.ids }}", enabled: "{{ item.enabled }}" }
+      loop:
+        - { ids: "{{ wanted }}", enabled: true }
+        - { ids: "{{ others }}", enabled: false }
+      when: item.ids | length > 0
+      loop_control: { label: "{{ 'enable' if item.enabled else 'disable' }} {{ item.ids | length }}" }
+
+    - name: Tool IDs for the diagnose step
+      ansible.builtin.set_fact:
+        mcp_tool_ids: "{{ mcp_tools_out.json.resources | selectattr('name', 'in', mcp_tools) | map(attribute='id') | list }}"
 
     # ---------- service account for the webhook ----------
     - name: Service account

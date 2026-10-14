@@ -7,7 +7,9 @@
       {{ lookup('ansible.builtin.file', playbook_dir ~ '/../orchestrator-config/' ~ wf.file)
          | replace('__AAP_INTEGRATION_ID__', aap_int_id) | replace('__AAP_CREDENTIAL_ID__', aap_cred_id)
          | replace('__LLM_CREDENTIAL_ID__', llm_cred_id) | replace('__LLM_MODEL_ID__', llm_model_id)
-         | replace('__SERVICE_ACCOUNT_ID__', sa_id) | from_json }}
+         | replace('__SERVICE_ACCOUNT_ID__', sa_id)
+         | replace('__MCP_INTEGRATION_ID__', mcp_int_id) | replace('__MCP_CREDENTIAL_ID__', mcp_cred_id)
+         | replace('"__MCP_TOOL_IDS__"', mcp_tool_ids | to_json) | from_json }}
 
 - name: Existing workflow with this name, fingerprint of the definition in Git
   ansible.builtin.set_fact:

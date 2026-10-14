@@ -26,6 +26,14 @@ llm_integration_name: Models-as-a-Service (OpenShift AI)
 llm_model: publishers/ai-engineering/models/granite
 llm_model_display: Granite 4.0 H-Tiny (self-hosted)
 
+# OpenShift MCP (gitops/components/orchestrator-mcp): read only, hub and both plants. The token
+# of the service account orchestrator-diagnose opens the door; only the diagnose step gets it.
+mcp_integration_name: OpenShift (read only)
+mcp_url: https://openshift-mcp.apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com/mcp
+mcp_credential_name: "OpenShift MCP: diagnose (read only)"
+# Tools the diagnose step may use (all others stay disabled)
+mcp_tools: [pods_list_in_namespace, pods_get, pods_log, events_list, resources_list, resources_get, namespaces_list]
+
 # AAP job "Operations: Report Incident" starts the workflow through this webhook
 service_account: plant-alerts
 webhook_path: plant-incident
