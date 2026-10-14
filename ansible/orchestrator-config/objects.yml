@@ -11,6 +11,11 @@ project:
   name: plant-operations
   description: Incidents and fixes at the production plants
 
+# Who may see and run the workflows of the project and approve fixes. Users exist only after
+# their first sign-in through AAP; until then the playbook skips them.
+project_roles:
+  - { user: max, role: project-user }
+
 # AAP user "orchestrator" may run only the internal incident templates (aap-config/objects.yml)
 aap_credential_name: "AAP: user orchestrator"
 aap_integration_name: Ansible Automation Platform
