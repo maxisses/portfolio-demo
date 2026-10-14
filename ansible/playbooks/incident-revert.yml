@@ -1,8 +1,8 @@
 ---
 # "Operations: Revert Change" (internal, started by the automation orchestrator after a person
 # approved the fix): reverts one Git commit and lets the plant pull the corrected state.
-# Guard rails: only commits of the last 24 hours, and only changes to fleet rules or plant
-# tenants. The commit message names the approver and the orchestrator run.
+# Guard rails: only commits of the last 24 hours, only changes to fleet rules or plant
+# tenants, and never a revert itself. The commit message names the approver and the orchestrator run.
 - name: Revert a change that broke a plant
   hosts: localhost
   gather_facts: false
@@ -46,6 +46,7 @@
           case "$f" in {{ allowed_paths | map('regex_replace', '$', '*') | join('|') }}) ;; *) echo "GUARD: $f is outside the allowed paths" >&2; exit 4;; esac
         done
         subject=$(git show -s --format=%s "$sha")
+        case "$subject" in Revert*) echo "GUARD: $sha is itself a revert, reverting it would bring the change back" >&2; exit 5;; esac
         git revert --no-edit --no-commit "$sha"
         git commit -q -F - <<MSG
         Revert "$subject" ({{ {'ocp19': 'Plant Berlin', 'ocp20': 'Plant Mülheim'}[cluster] | default(cluster) }} incident)

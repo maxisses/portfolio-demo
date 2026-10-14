@@ -45,11 +45,23 @@
       loop: "{{ watched_paths }}"
       register: commits
 
+    # Only changes that are still in effect: a revert and the commit it reverted cancel out.
+    - name: Changes still in effect
+      vars:
+        all_commits: "{{ commits.results | map(attribute='json') | flatten | sort(attribute='commit.committer.date', reverse=true) }}"
+        reverted: >-
+          {{ all_commits | map(attribute='commit.message')
+             | map('regex_findall', '(?:Reverts|This reverts commit) ([0-9a-f]{40})') | flatten | list }}
+      ansible.builtin.set_fact:
+        effective_shas: >-
+          {{ (all_commits | rejectattr('commit.message', 'match', '^Revert ')
+              | rejectattr('sha', 'in', reverted) | map(attribute='sha') | unique | list)[:5] }}
+
     - name: Details of the changes (files and diff)
       ansible.builtin.uri:
         url: "https://api.github.com/repos/{{ repo }}/commits/{{ item }}"
         headers: { Accept: application/vnd.github+json }
-      loop: "{{ (commits.results | map(attribute='json') | flatten | sort(attribute='commit.committer.date', reverse=true) | map(attribute='sha') | unique | list)[:5] }}"
+      loop: "{{ effective_shas }}"
       register: details
 
     - name: Evidence
@@ -108,7 +120,7 @@
           {% endfor %}
           Runbook notes:
           {{ runbook }}
-          Git changes in the last {{ hours }} hours that reach this plant (newest first, full commit SHA):
+          Git changes of the last {{ hours }} hours that reach this plant and are still in effect (reverted changes left out; newest first, full commit SHA):
           {% for c in changes %}
           - commit {{ c.sha }} at {{ c.time }} by {{ c.author }}: {{ c.message.splitlines() | first }}
           {% for f in c.files %}
