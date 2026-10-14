@@ -356,7 +356,8 @@ Werk Berlin: Policy plant-segmentation (SR 5.1) erzeugt NetworkPolicy -> news-ba
 ```
 
 Störung einspielen: `scripts/incident-inject.sh` (ein Commit). Konfiguration nach jedem Neuaufbau:
-`ansible/playbooks/orchestrator-configure.yml`. Der Demo-Agent kann Störungen melden, aber nicht
+`ansible/playbooks/orchestrator-configure.yml`. Aufbau, Betrieb und Stolpersteine im Detail:
+`docs/automation-orchestrator.md`. Der Demo-Agent kann Störungen melden, aber nicht
 freigeben.
 
 ## 7. Bauanleitung
