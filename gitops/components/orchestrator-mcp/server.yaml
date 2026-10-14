@@ -40,6 +40,8 @@ spec:
             - --provider=openshift
             - --openshift-service-account=openshift-mcp
             - --upstream=http://127.0.0.1:8081
+            # the MCP server accepts only its own host name (DNS rebinding protection)
+            - --pass-host-header=false
             - --http-address=:8080
             - --https-address=
             - --cookie-secret-file=/etc/proxy/cookie/secret
