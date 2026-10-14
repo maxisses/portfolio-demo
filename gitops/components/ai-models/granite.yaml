@@ -50,6 +50,9 @@ spec:
           - --ssl-certfile=/var/run/kserve/tls/tls.crt
           - --ssl-keyfile=/var/run/kserve/tls/tls.key
           - --enable-force-include-usage
+          # Tool calling for task agents in the automation orchestrator (OpenShift MCP)
+          - --enable-auto-tool-choice
+          - --tool-call-parser=granite4
         ports:
           - containerPort: 8000
             name: http

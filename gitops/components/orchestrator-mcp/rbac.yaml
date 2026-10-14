@@ -1,0 +1,159 @@
+# OpenShift MCP server for the automation orchestrator: read only, for the hub and both plants.
+# Two identities:
+# - what the server may see: the read-only access of the demo agent (agent-access: view on the
+#   hub, ManagedServiceAccounts with view on ocp19/ocp20 through the cluster proxy)
+# - who may call it: a bearer token that passes a SubjectAccessReview on the service
+#   (oauth-proxy). The orchestrator holds the token of "orchestrator-diagnose" and hands it
+#   only to the diagnose step of its workflow.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: orchestrator-mcp
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: openshift-mcp
+  namespace: orchestrator-mcp
+  annotations:
+    # oauth-proxy with the OpenShift provider expects the service account to be an OAuth client
+    serviceaccounts.openshift.io/oauth-redirectreference.mcp: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"openshift-mcp"}}'
+---
+# TokenReview and SubjectAccessReview for incoming bearer tokens
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: orchestrator-mcp-auth-delegator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: openshift-mcp
+    namespace: orchestrator-mcp
+---
+# The caller: may "get" the service, which is what the oauth-proxy checks
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orchestrator-diagnose
+  namespace: orchestrator-mcp
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: orchestrator-diagnose-token
+  namespace: orchestrator-mcp
+  annotations:
+    kubernetes.io/service-account.name: orchestrator-diagnose
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: use-openshift-mcp
+  namespace: orchestrator-mcp
+rules:
+  - apiGroups: [""]
+    resources: [services]
+    resourceNames: [openshift-mcp]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: orchestrator-diagnose-uses-openshift-mcp
+  namespace: orchestrator-mcp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: use-openshift-mcp
+subjects:
+  - kind: ServiceAccount
+    name: orchestrator-diagnose
+    namespace: orchestrator-mcp
+---
+# ESO reads the read-only tokens of the demo agent to build the server's kubeconfig
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-kubeconfig-builder
+  namespace: orchestrator-mcp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: read-agent-viewer-token
+  namespace: agent-access
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [agent-viewer-token]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mcp-kubeconfig-builder
+  namespace: agent-access
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: read-agent-viewer-token
+subjects:
+  - kind: ServiceAccount
+    name: mcp-kubeconfig-builder
+    namespace: orchestrator-mcp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: read-agent-viewer-token
+  namespace: ocp19
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [agent-viewer]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mcp-kubeconfig-builder
+  namespace: ocp19
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: read-agent-viewer-token
+subjects:
+  - kind: ServiceAccount
+    name: mcp-kubeconfig-builder
+    namespace: orchestrator-mcp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: read-agent-viewer-token
+  namespace: ocp20
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [agent-viewer]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mcp-kubeconfig-builder
+  namespace: ocp20
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: read-agent-viewer-token
+subjects:
+  - kind: ServiceAccount
+    name: mcp-kubeconfig-builder
+    namespace: orchestrator-mcp

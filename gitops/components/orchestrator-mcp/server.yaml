@@ -1,0 +1,84 @@
+# The MCP server (upstream kubernetes-mcp-server, same version as the demo agent uses) listens
+# on localhost only; the oauth-proxy in front lets a request through when its bearer token may
+# "get" the service openshift-mcp. Read only, no destructive tools, core toolset.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-mcp
+  namespace: orchestrator-mcp
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: openshift-mcp }
+  template:
+    metadata:
+      labels: { app: openshift-mcp }
+    spec:
+      serviceAccountName: openshift-mcp
+      containers:
+        - name: mcp
+          image: quay.io/containers/kubernetes_mcp_server@sha256:e47f6ccc5347e1ea6be495d8d9ab55ac8a995fe87800fb984fa770cebe14ad44
+          args:
+            - --port=8081
+            - --bind-address=127.0.0.1
+            - --read-only
+            - --disable-destructive
+            - --toolsets=core
+            - --stateless
+            - --cluster-provider=kubeconfig
+            - --kubeconfig=/etc/mcp/kubeconfig
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+          volumeMounts:
+            - { name: kubeconfig, mountPath: /etc/mcp, readOnly: true }
+        - name: oauth-proxy
+          image: registry.redhat.io/openshift4/ose-oauth-proxy-rhel9@sha256:5f9d70ada688ccdcdf44c9c9761b87c1d6ca56689d75e9da1b42b6657b0cb107
+          args:
+            - --provider=openshift
+            - --openshift-service-account=openshift-mcp
+            - --upstream=http://127.0.0.1:8081
+            - --http-address=:8080
+            - --https-address=
+            - --cookie-secret-file=/etc/proxy/cookie/secret
+            - --email-domain=*
+            - '--openshift-delegate-urls={"/":{"resource":"services","verb":"get","namespace":"orchestrator-mcp","name":"openshift-mcp"}}'
+          ports:
+            - { containerPort: 8080, name: http }
+          readinessProbe:
+            httpGet: { path: /oauth/healthz, port: 8080 }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits: { cpu: 200m, memory: 256Mi }
+          volumeMounts:
+            - { name: cookie, mountPath: /etc/proxy/cookie, readOnly: true }
+      volumes:
+        - name: kubeconfig
+          secret: { secretName: mcp-kubeconfig }
+        - name: cookie
+          secret: { secretName: oauth-proxy-cookie }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshift-mcp
+  namespace: orchestrator-mcp
+spec:
+  selector: { app: openshift-mcp }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+---
+# Public route: the orchestrator accepts only public integration URLs (D54)
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: openshift-mcp
+  namespace: orchestrator-mcp
+spec:
+  host: openshift-mcp.apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com
+  to: { kind: Service, name: openshift-mcp }
+  port: { targetPort: http }
+  tls: { termination: edge, insecureEdgeTerminationPolicy: Redirect }
