@@ -12,6 +12,7 @@
   vars:
     repo_root: "{{ playbook_dir }}/../.."
     sm: "aws secretsmanager get-secret-value --query SecretString --output text --secret-id"
+    mcp_token_cmd: "oc --kubeconfig {{ repo_root }}/local/kubeconfig get secret orchestrator-diagnose-token -n orchestrator-mcp -o jsonpath={.data.token}"
   tasks:
     - name: Admin login
       ansible.builtin.uri:
@@ -97,9 +98,7 @@
       ansible.builtin.set_fact:
         maas_key: "{{ (lookup('ansible.builtin.pipe', sm ~ ' portfolio-demo/orchestrator/maas') | from_json).api_key }}"
         aap_token: "{{ lookup('ansible.builtin.pipe', sm ~ ' portfolio-demo/orchestrator/aap-token') }}"
-        mcp_token: >-
-          {{ lookup('ansible.builtin.pipe', 'oc --kubeconfig ' ~ repo_root ~ '/local/kubeconfig get secret orchestrator-diagnose-token
-             -n orchestrator-mcp -o jsonpath={.data.token}') | b64decode }}
+        mcp_token: "{{ lookup('ansible.builtin.pipe', mcp_token_cmd) | b64decode }}"
       no_log: true
 
     # ---------- credentials ----------
@@ -227,7 +226,7 @@
 
     - name: Tools of the OpenShift MCP
       ansible.builtin.uri:
-        url: "{{ orchestrator_url }}/api/v1/integrations/{{ mcp_int_id }}/tools?limit=200"
+        url: "{{ orchestrator_url }}/api/v1/integrations/{{ mcp_int_id }}/tools?limit=100"
         headers: "{{ ao_headers }}"
       register: mcp_tools_out
       until: mcp_tools_out.json.resources | length > 0
