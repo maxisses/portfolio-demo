@@ -8,6 +8,7 @@ get() { aws secretsmanager get-secret-value --secret-id "$1" --query SecretStrin
 rosa="$(get portfolio-demo/rosa/users)"
 aap="$(get portfolio-demo/aap/installer)"
 users="$(get portfolio-demo/aap/users)"
+orch="$(get portfolio-demo/orchestrator/admin)"
 cat <<OUT
 ROSA Console : $(jq -r .console_url <<<"$rosa")
   cluster-admin / $(jq -r .cluster_admin_password <<<"$rosa")
@@ -20,4 +21,7 @@ AAP          : https://aap.sandbox3259.opentlc.com
 AAP MCP      : https://aap.sandbox3259.opentlc.com:8448/mcp/job_management
 Portal       : https://portal.apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com (Anmeldung über AAP, z. B. als max)
 MaaS         : https://maas.apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com
+Orchestrator : https://orchestrator.apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com
+  Anmeldung "Ansible Automation Platform" (SSO), z. B. als max mit dem AAP-Passwort oben
+  lokaler admin / $(jq -r .password <<<"$orch")   (Notfall, Konfiguration)
 OUT
