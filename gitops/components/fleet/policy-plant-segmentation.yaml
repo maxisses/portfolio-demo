@@ -14,7 +14,7 @@ metadata:
     policy.open-cluster-management.io/controls: SR 5.1 Network segmentation
 spec:
   remediationAction: enforce
-  disabled: false
+  disabled: true
   policy-templates:
     - objectDefinition:
         apiVersion: policy.open-cluster-management.io/v1
