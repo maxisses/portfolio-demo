@@ -1,0 +1,148 @@
+# Kubeconfig for the MCP server and the oauth-proxy cookie, both generated in the cluster.
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: tokens-agent-access
+  namespace: orchestrator-mcp
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: agent-access
+      server:
+        url: https://kubernetes.default.svc
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: mcp-kubeconfig-builder
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: tokens-ocp19
+  namespace: orchestrator-mcp
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: ocp19
+      server:
+        url: https://kubernetes.default.svc
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: mcp-kubeconfig-builder
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: tokens-ocp20
+  namespace: orchestrator-mcp
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: ocp20
+      server:
+        url: https://kubernetes.default.svc
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: mcp-kubeconfig-builder
+---
+# Kubeconfig of the MCP server, built from the read-only tokens of the demo agent. ACM rotates
+# the ManagedServiceAccount tokens; ESO follows within the refresh interval.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: mcp-kubeconfig
+  namespace: orchestrator-mcp
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  refreshInterval: 15m
+  target:
+    name: mcp-kubeconfig
+    template:
+      data:
+        kubeconfig: |
+          apiVersion: v1
+          kind: Config
+          clusters:
+            - name: portfolio-hub
+              cluster: { server: "https://api.portfolio-hub2.cg41.p3.openshiftapps.com:443" }
+            - name: ocp19
+              cluster: { server: "https://cluster-proxy-user.apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com/ocp19" }
+            - name: ocp20
+              cluster: { server: "https://cluster-proxy-user.apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com/ocp20" }
+          users:
+            - name: viewer@portfolio-hub
+              user: { token: "{{ .hub }}" }
+            - name: viewer@ocp19
+              user: { token: "{{ .ocp19 }}" }
+            - name: viewer@ocp20
+              user: { token: "{{ .ocp20 }}" }
+          contexts:
+            - name: portfolio-hub
+              context: { cluster: portfolio-hub, user: viewer@portfolio-hub }
+            - name: ocp19
+              context: { cluster: ocp19, user: viewer@ocp19 }
+            - name: ocp20
+              context: { cluster: ocp20, user: viewer@ocp20 }
+          current-context: portfolio-hub
+  data:
+    - secretKey: hub
+      remoteRef: { key: agent-viewer-token, property: token }
+      sourceRef: { storeRef: { kind: SecretStore, name: tokens-agent-access } }
+    - secretKey: ocp19
+      remoteRef: { key: agent-viewer, property: token }
+      sourceRef: { storeRef: { kind: SecretStore, name: tokens-ocp19 } }
+    - secretKey: ocp20
+      remoteRef: { key: agent-viewer, property: token }
+      sourceRef: { storeRef: { kind: SecretStore, name: tokens-ocp20 } }
+---
+# Cookie secret for the oauth-proxy (required, only used for browser sessions), generated in the cluster
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: Password
+metadata:
+  name: cookie-secret
+  namespace: orchestrator-mcp
+spec:
+  length: 32
+  digits: 8
+  symbols: 0
+  noUpper: false
+  allowRepeat: true
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: oauth-proxy-cookie
+  namespace: orchestrator-mcp
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  refreshInterval: "0"
+  target:
+    name: oauth-proxy-cookie
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: Password
+          name: cookie-secret
+      rewrite:
+        - regexp: { source: "password", target: "secret" }
