@@ -9,5 +9,11 @@ Cluster läuft.
 - Zwei Edge-Cluster, angebunden im Pull-Modell
 - Ein Self-Service-Katalog: Namespace, AI-Namespace, Model-Endpoint, DBaaS
 
+- Automation Orchestrator: ein Agent diagnostiziert eine Störung im Werk, ein Mensch gibt den Fix frei
+
 Gebaut mit Claude Code. Die Bauanleitung steht in [CLAUDE.md](CLAUDE.md), der Verlauf in
 [docs/build-journal.md](docs/build-journal.md).
+
+**Selbst aufbauen:** [docs/rebuild.md](docs/rebuild.md) (Voraussetzungen, Aufbau aus einer leeren
+AWS-Sandbox, auch als Fork mit eigenen Werks-Clustern). Den Orchestrator-Teil beschreibt
+[docs/automation-orchestrator.md](docs/automation-orchestrator.md).

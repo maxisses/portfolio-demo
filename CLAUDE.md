@@ -2,12 +2,11 @@
 
 Stand: 30.09.2026 · Demo-Termin: 02.10.2026 · Build-Start: 30.09.2026, ca. 15:00
 
-Status (01.10.2026, 13:40): Alles gebaut und als Agent getestet: Fundament, ROSA mit GPU (L4),
-AAP mit MCP, Portal, GitOps-Plattform, Flotte (ocp19, ocp20, Localnews, Policies), RHOAI 3.5 mit
-MaaS (Granite selbst gehostet; Claude Haiku, Sonnet, Opus und GPT-6 Luna extern), Katalog-Items
-plus Aufräumen, Demo-Agent über MCP. Alles in der Demo Sichtbare ist englisch (D47). Offen:
-Operator-Persona testen (Trockenlauf), Fine-Tuning-Notebook, Demo-Skript, Generalprobe.
-Details in `docs/build-journal.md`.
+Status (20.10.2026): Gebaut, live vorgeführt (02.10.) und dreimal komplett neu aufgebaut.
+Dazu kam am 13./14.10. der Automation Orchestrator (Abschnitt 6.6). Die Sandbox ist derzeit
+abgebaut. **Neuaufbau, auch in einem Fork und mit eigenen Werks-Clustern: [docs/rebuild.md](docs/rebuild.md).**
+Abschnitt 7 unten ist der ursprüngliche Bauplan vom 30.09.; wo er von der Wirklichkeit abweicht,
+gelten docs/rebuild.md, die Entscheidungen in Abschnitt 9 und `docs/build-journal.md`.
 
 Dieses Dokument ist Spezifikation und Arbeitsanweisung für Agenten zugleich. Die Umgebung wird
 mit Claude Code gebaut; wer hier arbeitet, Mensch oder Agent, hält das Dokument aktuell.
@@ -114,8 +113,9 @@ So setzen wir das auf AWS um:
 
 ### AWS
 
-- RHDP-Sandbox in `eu-central-1` mit öffentlicher Route53-Zone `sandbox3481.opentlc.com`.
-  Läuft bis nach dem Demo-Termin. ROSA mit HCP ist per Marketplace aktiviert.
+- RHDP-Sandbox in `eu-central-1` mit öffentlicher Route53-Zone `sandboxNNNN.opentlc.com`
+  (wechselt mit jeder Sandbox; `scripts/retarget.sh` stellt das Repo um). ROSA mit HCP wird per
+  Marketplace aktiviert und der Account mit der Red-Hat-Organisation verknüpft (docs/rebuild.md).
 - Beim Start leer: keine VPC (auch keine Default-VPC), keine Instanzen, keine ROSA-Rollen.
 - Quotas `eu-central-1`: Standard 1152 vCPU, G/VT 768 vCPU. Keine Anträge nötig.
 - GPU-Typen in `eu-central-1`: g5 (A10G 24 GB), g6 (L4 24 GB), g6e (L40S 48 GB).
@@ -125,7 +125,9 @@ So setzen wir das auf AWS um:
 
 ### Edge-Cluster
 
-- ocp19 und ocp20 stehen in einem Lab und sind nur im internen Netz erreichbar. Ihre APIs haben
+- ocp19 und ocp20 stehen in einem Lab und sind nur im internen Netz erreichbar. Wer die Demo
+  nachbaut, nimmt zwei eigene OpenShift-Cluster und importiert sie unter diesen Namen; ihre
+  Apps-Domain kommt als Label `apps-domain` an den ManagedCluster, nie ins Repo. Ihre APIs haben
   keine öffentliche DNS-Auflösung. ROSA in AWS erreicht sie also nicht, umgekehrt geht es
   voraussichtlich (ausgehend ins Internet). Das bestimmt die Edge-Architektur (Abschnitt 6.3).
 - Offen bis zum Login: Version, installierte Operatoren, ob sie noch an einem anderen ACM-Hub
@@ -222,9 +224,9 @@ ACM und Flotte
  │   ├─ Ansible Automation Portal (Helm/Operator)
  │   ├─ OpenShift AI 3.5: AI-Namespaces, MaaS-Gateway, llm-d, Granite
  │   └─ GPU-Machine-Pool (g6e.xlarge, L40S), erst nach Freigabe
- ├─ EC2: RHEL 9.6+ mit AAP 2.7 Growth + MCP-Server (aap.sandbox3481.opentlc.com)
+ ├─ EC2: RHEL 9.6+ mit AAP 2.7 Growth + MCP-Server (aap.sandboxNNNN.opentlc.com)
  ├─ S3: Terraform-State · Secrets Manager: Keys und DB-Zugänge
- └─ Route53: *.sandbox3481.opentlc.com
+ └─ Route53: *.sandboxNNNN.opentlc.com
 
  Anthropic-API ◄── MaaS ExternalModel (Claude Haiku 4.5)
 
@@ -360,7 +362,9 @@ Störung einspielen: `scripts/incident-inject.sh` (ein Commit). Konfiguration na
 `docs/automation-orchestrator.md`. Der Demo-Agent kann Störungen melden, aber nicht
 freigeben.
 
-## 7. Bauanleitung
+## 7. Bauanleitung (ursprünglicher Plan, Stand 30.09.)
+
+Für einen Neuaufbau gilt [docs/rebuild.md](docs/rebuild.md).
 
 Zeitplan: Mittwochabend Phasen 0 bis 2, Donnerstag Phasen 3 bis 7, Donnerstagabend Phase 8.
 Parallel arbeiten, wo es geht: Während ROSA entsteht, installieren wir AAP; während Operatoren
