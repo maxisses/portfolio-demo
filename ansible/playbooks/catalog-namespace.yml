@@ -15,10 +15,9 @@
     requester: "{{ tower_user_name | default('local') }}"
     channel: "{{ 'agent' if requester is match('^agent-') else 'portal' }}"
     request_id: "{{ tower_job_id | default('local') }}"
-    clusters:
-      portfolio-hub: "https://console-openshift-console.apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com"
-      ocp19: "https://console-openshift-console.apps.ocp19.stormshift.coe.muc.redhat.com"
-      ocp20: "https://console-openshift-console.apps.ocp20.stormshift.coe.muc.redhat.com"
+    # Console of the hub; for the plants it comes from the label apps-domain of the ManagedCluster
+    hub_console: "https://console-openshift-console.apps.rosa.portfolio-hub2.cg41.p3.openshiftapps.com"
+    clusters: [portfolio-hub, ocp19, ocp20]
   tasks:
     - name: Validate input
       ansible.builtin.assert:
@@ -27,7 +26,21 @@
           - team is match('^[a-z0-9]([-a-z0-9]{0,20}[a-z0-9])?$')
           - target_cluster in clusters
           - not ns_name.startswith(('openshift', 'kube', 'default'))
-        fail_msg: "Name/team: lowercase letters, digits, dashes. Target cluster: {{ clusters.keys() | join(', ') }}"
+        fail_msg: "Name/team: lowercase letters, digits, dashes. Target cluster: {{ clusters | join(', ') }}"
+
+    - name: Apps domain of the target plant (label set at import)
+      when: target_cluster != 'portfolio-hub'
+      kubernetes.core.k8s_info:
+        api_version: cluster.open-cluster-management.io/v1
+        kind: ManagedCluster
+        name: "{{ target_cluster }}"
+      register: mc
+
+    - name: Console of the target cluster
+      ansible.builtin.set_fact:
+        console_url: >-
+          {{ hub_console if target_cluster == 'portfolio-hub'
+             else 'https://console-openshift-console.' ~ mc.resources[0].metadata.labels['apps-domain'] }}
 
     - name: Timestamp
       ansible.builtin.set_fact:
@@ -63,7 +76,7 @@
           namespace: "{{ ns_name }}"
           cluster: "{{ target_cluster }}"
           team: "{{ team }}"
-          console: "{{ clusters[target_cluster] }}/k8s/cluster/projects/{{ ns_name }}"
+          console: "{{ console_url }}/k8s/cluster/projects/{{ ns_name }}"
           git_commit: "{{ gitops_repo_web }}/commit/{{ commit_sha }}"
           ordered_by: "{{ requester }} via {{ channel }}"
 

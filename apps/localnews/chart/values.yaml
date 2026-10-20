@@ -1,5 +1,5 @@
-# The apps domain of the cluster. Routes are built from it.
-clusterDomain: apps.ocp4.stormshift.coe.muc.redhat.com
+# The apps domain of the cluster. Routes are built from it; the catalog sets it per deployment.
+clusterDomain: apps.example.com
 
 imagePullPolicy: Always
 

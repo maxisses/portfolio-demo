@@ -8,7 +8,8 @@
   gather_facts: false
   vars:
     cluster: ocp19
-    repo: maxisses/portfolio-demo
+    gitops_repo_web: https://github.com/maxisses/portfolio-demo
+    repo: "{{ gitops_repo_web | regex_replace('^https://github.com/', '') }}"
     hours: 24
     watched_paths:
       - gitops/components/fleet
